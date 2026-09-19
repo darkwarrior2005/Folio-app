@@ -129,5 +129,5 @@ force close or a dead battery cannot lose your place.
   rescan, tags, annotations, remove/restore/purge, duplicate detection, collection ordering and a
   full backup/restore round trip — `./gradlew :app:connectedDebugAndroidTest`
 
-  ## Note
+## Note
 - This is Application is fully made using AI (claude code).
