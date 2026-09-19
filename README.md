@@ -128,3 +128,6 @@ force close or a dead battery cannot lose your place.
 - Instrumented tests (real database on a device): position round-trip, overrides surviving a
   rescan, tags, annotations, remove/restore/purge, duplicate detection, collection ordering and a
   full backup/restore round trip — `./gradlew :app:connectedDebugAndroidTest`
+
+  ## Note
+- This is Application is fully made using AI (claude code).
