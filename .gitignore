@@ -1,0 +1,19 @@
+*.iml
+.gradle/
+.kotlin/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/app/build/
+/captures
+.externalNativeBuild
+.cxx
+# Local tooling and secrets: never publish
+.claude/
+.superpowers/
+*.jks
+*.keystore
+keystore.properties
+*.apk
+*.aab

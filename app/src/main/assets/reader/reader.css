@@ -1,0 +1,108 @@
+:root {
+  --folio-bg: #ffffff;
+  --folio-fg: #1a1a1a;
+  --folio-accent: #7b5cff;
+  --folio-font: Georgia, serif;
+  --folio-size: 18px;
+  --folio-line: 1.5;
+  --folio-letter: 0em;
+  --folio-word: 0em;
+  --folio-para: 0.6em;
+  --folio-margin: 20px;
+  --folio-max-width: 40em;
+  --folio-weight: 400;
+  --folio-align: start;
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--folio-bg);
+  color: var(--folio-fg);
+  font-family: var(--folio-font);
+  font-size: var(--folio-size);
+  line-height: var(--folio-line);
+  letter-spacing: var(--folio-letter);
+  word-spacing: var(--folio-word);
+  font-weight: var(--folio-weight);
+  text-align: var(--folio-align);
+  -webkit-text-size-adjust: none;
+}
+
+#content {
+  padding: var(--folio-margin);
+  max-width: var(--folio-max-width);
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+body.paginated {
+  overflow: hidden;
+  height: 100vh;
+}
+
+body.paginated #content {
+  height: calc(100vh - 2 * var(--folio-margin));
+  column-width: calc(100vw - 2 * var(--folio-margin));
+  column-gap: calc(2 * var(--folio-margin));
+  max-width: none;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+body.paginated #content::-webkit-scrollbar { display: none; }
+
+.blk { margin: 0 0 var(--folio-para) 0; break-inside: avoid-column; }
+
+p { margin: 0 0 var(--folio-para) 0; }
+
+h1, h2, h3, h4, h5, h6 {
+  line-height: 1.25;
+  margin: 1.2em 0 0.5em 0;
+  text-align: start;
+  font-weight: 600;
+}
+
+h1 { font-size: 1.6em; }
+h2 { font-size: 1.35em; }
+h3 { font-size: 1.15em; }
+
+img, svg, video { max-width: 100%; height: auto; }
+
+blockquote {
+  margin: 0 0 var(--folio-para) 0;
+  padding-left: 1em;
+  border-left: 3px solid color-mix(in srgb, var(--folio-fg) 25%, transparent);
+  opacity: 0.9;
+}
+
+pre, code {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.9em;
+}
+
+pre {
+  overflow-x: auto;
+  padding: 0.75em;
+  background: color-mix(in srgb, var(--folio-fg) 7%, transparent);
+  border-radius: 8px;
+}
+
+table { border-collapse: collapse; width: 100%; display: block; overflow-x: auto; }
+td, th { border: 1px solid color-mix(in srgb, var(--folio-fg) 20%, transparent); padding: 0.4em; }
+
+a { color: var(--folio-accent); }
+
+mark.folio-hl {
+  background: transparent;
+  color: inherit;
+  border-radius: 2px;
+  padding: 0.05em 0;
+  box-decoration-break: clone;
+}
+
+hr { border: none; border-top: 1px solid color-mix(in srgb, var(--folio-fg) 20%, transparent); }
