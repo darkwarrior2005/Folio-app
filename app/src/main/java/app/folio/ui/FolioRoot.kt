@@ -166,6 +166,7 @@ private fun FolioNavHost(
     wide: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val container = LocalContainer.current
     NavHost(navController, startDestination = Routes.HOME, modifier = modifier) {
         composable(Routes.HOME) {
             HomeScreen(
@@ -177,6 +178,13 @@ private fun FolioNavHost(
                 onStats = { navController.navigateTop(Routes.STATS) },
                 onQueue = { navController.navigate(Routes.QUEUE) },
                 onPomodoro = { navController.navigate(Routes.POMODORO) },
+                onSearch = { navController.navigate(Routes.SEARCH) },
+                onSettings = { navController.navigateTop(Routes.SETTINGS) },
+                onMusic = { navController.navigate(Routes.MUSIC) },
+                onLibrarySmart = { smart ->
+                    container.libraryRequest.value = smart
+                    navController.navigateTop(Routes.LIBRARY)
+                },
             )
         }
 
@@ -340,7 +348,10 @@ private fun FolioNavHost(
             CollectionsScreen(
                 onBack = { navController.popBackStack() },
                 onOpenCollection = { navController.navigate(Routes.collection(it)) },
-                onOpenSmart = { navController.navigateTop(Routes.LIBRARY) },
+                onOpenSmart = { smart ->
+                    container.libraryRequest.value = smart
+                    navController.navigateTop(Routes.LIBRARY)
+                },
                 onCategories = { navController.navigate(Routes.CATEGORIES) },
                 onTags = { navController.navigate(Routes.TAGS) },
                 onQueue = { navController.navigate(Routes.QUEUE) },

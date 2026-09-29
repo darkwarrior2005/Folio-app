@@ -79,6 +79,12 @@ class AppContainer(context: Context) {
         app.folio.music.BookMusicCoordinator(music, musicPlayer, pomodoro, settings, appScope)
     }
 
+    /**
+     * A smart collection the library should show the next time it appears, set by shortcuts that
+     * lead into the library (the home bookshelf, the Collections screen). The library clears it.
+     */
+    val libraryRequest = kotlinx.coroutines.flow.MutableStateFlow<app.folio.core.model.SmartCollection?>(null)
+
     val backup: app.folio.data.backup.BackupRepository by lazy {
         app.folio.data.backup.BackupRepository(database, settings, files, cache, library)
     }

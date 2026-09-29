@@ -81,6 +81,11 @@ force close or a dead battery cannot lose your place.
 - **Library:** 5 layouts, grouping, combinable filters, sorting, bulk editing, long-press actions,
   categories, collections (ordered, drag to reorder), tags with normalisation and autocomplete,
   smart collections, reading queue, favourites, recently removed (restorable)
+- **Home:** a bookshelf built from your collections: a "Currently reading" shelf, one shelf per
+  collection with its name set into the board, and at the bottom an "Other books" shelf holding the
+  books that are in no collection. Books show their real covers and spines, thickness follows page
+  count. A live clock opens the focus timer and the music player sits above the shelves. The
+  original sectioned home is still available as "Classic" in Settings → Library.
 - **Readers:** PDF (continuous / paged / two-page, zoom, night mode, margin cropping, text
   selection, highlights, in-book search, thumbnails), EPUB (pagination or scroll, fonts, spacing,
   themes, selection, highlights, search, TOC), manga (LTR/RTL/vertical, double page, fits, zoom,
@@ -91,7 +96,9 @@ force close or a dead battery cannot lose your place.
 - **Music:** offline music library (MP3, M4A/AAC, FLAC, OGG, WAV) with library-only metadata edits,
   music tags and collections; background playback with notification and lock-screen controls; link
   collections or tracks to PDF/EPUB books (loop, shuffle or a chosen selection) so the book's music
-  plays while you read it; pauses during Pomodoro breaks
+  plays while you read it; give a whole book collection a soundtrack that its books play unless they
+  have music of their own; set all of this, and make new playlists, from "Reading music" on the home
+  player; pauses during Pomodoro breaks
 - **Annotations:** bookmarks, five highlight colours, notes, a global notes hub, Markdown export
 - **Scribble:** draw on PDF and comic pages with a pen, a see-through highlighter (adjustable
   opacity, 10–100 %) and a stroke eraser, with undo/redo. In EPUB and text books, Draw makes a

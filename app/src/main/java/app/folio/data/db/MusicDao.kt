@@ -84,4 +84,43 @@ interface MusicDao {
     @Query("SELECT * FROM book_music_sources") suspend fun allSources(): List<BookMusicSourceEntity>
     @Query("SELECT * FROM book_music_selection") suspend fun allSelections(): List<BookMusicSelectionEntity>
     @Query("DELETE FROM book_music") suspend fun deleteAllBookMusic()
+
+    /** Books with music of their own, for the "has music" marks in pickers. */
+    @Query("SELECT DISTINCT bookId FROM book_music_sources") fun observeBooksWithMusic(): Flow<List<Long>>
+
+    // ---- Collection soundtracks ------------------------------------------------------------
+
+    @Upsert suspend fun upsertCollectionMusic(entity: CollectionMusicEntity)
+    @Query("SELECT * FROM collection_music WHERE collectionId = :collectionId")
+    suspend fun collectionMusic(collectionId: Long): CollectionMusicEntity?
+    @Query("SELECT * FROM collection_music WHERE collectionId = :collectionId")
+    fun observeCollectionMusic(collectionId: Long): Flow<CollectionMusicEntity?>
+    @Query("SELECT * FROM collection_music_sources WHERE collectionId = :collectionId ORDER BY position")
+    suspend fun collectionSources(collectionId: Long): List<CollectionMusicSourceEntity>
+    @Query("SELECT * FROM collection_music_sources WHERE collectionId = :collectionId ORDER BY position")
+    fun observeCollectionSources(collectionId: Long): Flow<List<CollectionMusicSourceEntity>>
+    @Query("DELETE FROM collection_music_sources WHERE collectionId = :collectionId")
+    suspend fun clearCollectionSources(collectionId: Long)
+    @Insert suspend fun insertCollectionSources(sources: List<CollectionMusicSourceEntity>)
+    @Query("DELETE FROM collection_music WHERE collectionId = :collectionId")
+    suspend fun deleteCollectionMusic(collectionId: Long)
+
+    /** Collections with a soundtrack, for the "has music" marks in pickers. */
+    @Query("SELECT DISTINCT collectionId FROM collection_music_sources")
+    fun observeCollectionsWithMusic(): Flow<List<Long>>
+
+    /** The collections a book is in that have a soundtrack, in shelf order. */
+    @Query(
+        """SELECT cm.* FROM collection_music cm
+           JOIN collection_books cb ON cb.collectionId = cm.collectionId
+           JOIN collections c ON c.id = cm.collectionId
+           WHERE cb.bookId = :bookId
+           ORDER BY c.sortOrder, c.createdAt""",
+    )
+    suspend fun collectionMusicForBook(bookId: Long): List<CollectionMusicEntity>
+
+    @Query("SELECT * FROM collection_music") suspend fun allCollectionMusic(): List<CollectionMusicEntity>
+    @Query("SELECT * FROM collection_music_sources") suspend fun allCollectionSources(): List<CollectionMusicSourceEntity>
+    @Query("DELETE FROM collection_music_sources") suspend fun deleteAllCollectionSources()
+    @Query("DELETE FROM collection_music") suspend fun deleteAllCollectionMusic()
 }

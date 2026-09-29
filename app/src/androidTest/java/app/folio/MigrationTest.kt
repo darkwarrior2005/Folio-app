@@ -75,8 +75,43 @@ class MigrationTest {
         }
     }
 
+    @Test
+    fun version3LibrarySurvivesCollectionMusicMigration() {
+        helper.createDatabase(DB_SHELF_MUSIC, 3).use { db ->
+            db.execSQL(
+                """INSERT INTO books (id, uri, fileName, fileSize, fileHash, mimeType, format, storage,
+                   pageCount, coverHidden, displayTitle, sortTitle, status, statusManual, favorite, progress,
+                   dateAdded, missing, passwordProtected, indexState, customOrder)
+                   VALUES (1, 'content://x/book.pdf', 'book.pdf', 10, 'h', 'application/pdf', 'PDF', 'LINKED',
+                   10, 0, 'Kept Book', 'kept book', 'READING', 0, 0, 0.5,
+                   0, 0, 0, 'PENDING', 0)""",
+            )
+            db.execSQL("INSERT INTO collections (id, name, sortOrder, createdAt) VALUES (1, 'Science', 0, 0)")
+            db.execSQL("INSERT INTO collection_books (collectionId, bookId, position, addedAt) VALUES (1, 1, 0, 0)")
+        }
+        helper.runMigrationsAndValidate(DB_SHELF_MUSIC, 4, true).use { db ->
+            db.query("SELECT name FROM collections WHERE id = 1").use { cursor ->
+                cursor.moveToFirst()
+                assertEquals("Science", cursor.getString(0))
+            }
+            db.query("SELECT COUNT(*) FROM collection_books").use { cursor ->
+                cursor.moveToFirst()
+                assertEquals(1, cursor.getInt(0))
+            }
+            db.query("SELECT COUNT(*) FROM collection_music").use { cursor ->
+                cursor.moveToFirst()
+                assertEquals(0, cursor.getInt(0))
+            }
+            db.query("SELECT COUNT(*) FROM collection_music_sources").use { cursor ->
+                cursor.moveToFirst()
+                assertEquals(0, cursor.getInt(0))
+            }
+        }
+    }
+
     private companion object {
         const val DB = "migration-test"
         const val DB_INK = "migration-test-ink"
+        const val DB_SHELF_MUSIC = "migration-test-shelf-music"
     }
 }

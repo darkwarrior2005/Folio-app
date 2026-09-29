@@ -3,9 +3,13 @@ package app.folio.ui.screens.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.folio.AppContainer
+import app.folio.core.model.Bookshelf
+import app.folio.core.model.BookshelfBuilder
 import app.folio.core.model.LibraryBook
 import app.folio.core.model.LibraryQuery
 import app.folio.core.model.ReadingStatus
+import app.folio.core.model.ShelfCollection
+import app.folio.core.model.ShelfLink
 import app.folio.core.model.StatsCalculator
 import app.folio.data.db.CollectionWithCount
 import app.folio.data.db.GoalType
@@ -62,6 +66,23 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     val collections: StateFlow<List<CollectionWithCount>> = container.organization.collections
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** Null until the library has loaded, so the home screen never flashes an empty shelf. */
+    val bookshelf: StateFlow<Bookshelf?> =
+        combine(
+            container.library.libraryBooks,
+            container.organization.collections,
+            container.organization.collectionLinks,
+        ) { library, collections, links ->
+            BookshelfBuilder.build(
+                books = library,
+                collections = collections.map { ShelfCollection(it.collection.id, it.collection.name) },
+                links = links.map { ShelfLink(it.collectionId, it.bookId, it.position) },
+                now = System.currentTimeMillis(),
+            )
+        }
+            .flowOn(Dispatchers.Default)
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val queue: StateFlow<List<LibraryBook>> =
         combine(container.organization.queue, books) { queue, library ->

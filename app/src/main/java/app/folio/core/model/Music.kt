@@ -38,6 +38,25 @@ enum class BookMusicMode { LOOP, SHUFFLE, SELECTION }
 /** One attached source of a book's music: a whole collection or a single track. */
 data class MusicSourceRef(val collectionId: Long?, val trackId: Long?)
 
+/** Music attached to a book or a book collection, as the player needs it. */
+data class MusicPlan(
+    val mode: BookMusicMode,
+    val autoplay: Boolean,
+    val sources: List<MusicSourceRef>,
+    val selection: List<Long> = emptyList(),
+)
+
+/** Which music a book plays: its own, else a soundtrack it gets from one of its collections. */
+object MusicInheritance {
+
+    /**
+     * The book's own music wins. Otherwise the first of its collections, in shelf order, that has
+     * any music. A plan with no sources counts as no music.
+     */
+    fun effective(own: MusicPlan?, fromCollections: List<MusicPlan>): MusicPlan? =
+        own?.takeIf { it.sources.isNotEmpty() } ?: fromCollections.firstOrNull { it.sources.isNotEmpty() }
+}
+
 object MusicQueueBuilder {
 
     /** Tracks attached to a book, in source order, each once, skipping tracks that are unavailable. */

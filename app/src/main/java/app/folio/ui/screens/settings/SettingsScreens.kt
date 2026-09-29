@@ -425,6 +425,26 @@ fun LibrarySettingsScreen(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
     SettingsScaffold(stringResource(R.string.settings_library), onBack) {
+        SectionHeader(stringResource(R.string.home_style))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            app.folio.data.settings.HomeStyle.entries.forEach { style ->
+                FilterChip(
+                    selected = settings.home.style == style,
+                    onClick = { viewModel.update { it.copy(home = it.home.copy(style = style)) } },
+                    label = {
+                        Text(
+                            stringResource(
+                                when (style) {
+                                    app.folio.data.settings.HomeStyle.BOOKSHELF -> R.string.home_style_bookshelf
+                                    app.folio.data.settings.HomeStyle.CLASSIC -> R.string.home_style_classic
+                                },
+                            ),
+                        )
+                    },
+                )
+            }
+        }
+
         SectionHeader(stringResource(R.string.library_layout))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LibraryLayout.entries.forEach { layout ->

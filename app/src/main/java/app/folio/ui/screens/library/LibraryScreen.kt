@@ -478,6 +478,7 @@ fun SmartCollection.label(): String = stringResource(
         SmartCollection.FAVORITES -> R.string.smart_favorites
         SmartCollection.LONG_BOOKS -> R.string.smart_long_books
         SmartCollection.SHORT_READS -> R.string.smart_short_reads
+        SmartCollection.UNSORTED -> R.string.smart_unsorted
     },
 )
 

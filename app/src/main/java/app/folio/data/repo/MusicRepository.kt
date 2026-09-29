@@ -7,6 +7,8 @@ import android.net.Uri
 import androidx.room.withTransaction
 import app.folio.core.model.BookMusicMode
 import app.folio.core.model.MetadataResolver
+import app.folio.core.model.MusicInheritance
+import app.folio.core.model.MusicPlan
 import app.folio.core.model.MusicQueueBuilder
 import app.folio.core.model.MusicSourceRef
 import app.folio.core.model.TagNormalizer
@@ -15,6 +17,8 @@ import app.folio.core.model.TrackMetadataResolver
 import app.folio.data.db.BookMusicEntity
 import app.folio.data.db.BookMusicSelectionEntity
 import app.folio.data.db.BookMusicSourceEntity
+import app.folio.data.db.CollectionMusicEntity
+import app.folio.data.db.CollectionMusicSourceEntity
 import app.folio.data.db.FolioDatabase
 import app.folio.data.db.MusicCollectionEntity
 import app.folio.data.db.MusicCollectionTrackEntity
@@ -47,6 +51,14 @@ data class NewTrack(
     val durationMs: Long,
     val imported: TrackMetadata,
     val cover: Bitmap?,
+)
+
+/** A book collection's soundtrack: whole playlists and single tracks, with how to play them. */
+data class CollectionMusicSettings(
+    val mode: BookMusicMode,
+    val autoplay: Boolean,
+    val playlistIds: List<Long>,
+    val trackIds: List<Long>,
 )
 
 data class BookMusicSettings(
@@ -86,6 +98,26 @@ class MusicRepository(
         dao.observeSelection(bookId),
     ) { music, sources, selection ->
         music?.let { BookMusicSettings(it.mode, it.autoplay, sources, selection.map { row -> row.trackId }) }
+    }
+
+    /** Ids of books that have music of their own. */
+    val booksWithMusic: Flow<List<Long>> = dao.observeBooksWithMusic()
+
+    /** Ids of book collections that have a soundtrack. */
+    val collectionsWithMusic: Flow<List<Long>> = dao.observeCollectionsWithMusic()
+
+    fun observeCollectionMusic(collectionId: Long): Flow<CollectionMusicSettings?> = combine(
+        dao.observeCollectionMusic(collectionId),
+        dao.observeCollectionSources(collectionId),
+    ) { music, sources ->
+        music?.let {
+            CollectionMusicSettings(
+                mode = it.mode,
+                autoplay = it.autoplay,
+                playlistIds = sources.mapNotNull { source -> source.musicCollectionId },
+                trackIds = sources.mapNotNull { source -> source.trackId },
+            )
+        }
     }
 
     suspend fun importUri(uri: String): MusicImportResult = withContext(Dispatchers.IO) {
@@ -194,6 +226,13 @@ class MusicRepository(
 
     suspend fun deleteCollection(id: Long) = dao.deleteCollection(id)
 
+    /** Creates a playlist (music collection) holding [trackIds] in that order, and returns its id. */
+    suspend fun createPlaylist(name: String, trackIds: List<Long>): Long = db.withTransaction {
+        val id = createCollection(name)
+        addToCollection(id, trackIds)
+        id
+    }
+
     suspend fun addToCollection(collectionId: Long, trackIds: List<Long>) = db.withTransaction {
         var position = dao.lastPosition(collectionId)
         dao.addToCollection(trackIds.map { MusicCollectionTrackEntity(collectionId, it, ++position) })
@@ -219,6 +258,45 @@ class MusicRepository(
         dao.deleteBookMusic(bookId)
     }
 
+    suspend fun saveCollectionMusic(collectionId: Long, settings: CollectionMusicSettings) = db.withTransaction {
+        dao.upsertCollectionMusic(
+            CollectionMusicEntity(collectionId, settings.mode, settings.autoplay, System.currentTimeMillis()),
+        )
+        dao.clearCollectionSources(collectionId)
+        val sources = settings.playlistIds.map { CollectionMusicSourceEntity(collectionId = collectionId, musicCollectionId = it, position = 0) } +
+            settings.trackIds.map { CollectionMusicSourceEntity(collectionId = collectionId, trackId = it, position = 0) }
+        dao.insertCollectionSources(sources.mapIndexed { index, source -> source.copy(position = index) })
+    }
+
+    suspend fun clearCollectionMusic(collectionId: Long) = db.withTransaction {
+        dao.clearCollectionSources(collectionId)
+        dao.deleteCollectionMusic(collectionId)
+    }
+
+    /**
+     * What a book plays when it opens: its own music, or else the soundtrack of the first of its
+     * collections (in shelf order) that has one. Null when neither exists.
+     */
+    suspend fun effectiveMusic(bookId: Long): MusicPlan? {
+        val own = bookMusicSettings(bookId)?.let { settings ->
+            MusicPlan(
+                mode = settings.mode,
+                autoplay = settings.autoplay,
+                sources = settings.sources.map { MusicSourceRef(it.collectionId, it.trackId) },
+                selection = settings.selection,
+            )
+        }
+        if (own != null && own.sources.isNotEmpty()) return own
+        val inherited = dao.collectionMusicForBook(bookId).map { music ->
+            MusicPlan(
+                mode = music.mode,
+                autoplay = music.autoplay,
+                sources = dao.collectionSources(music.collectionId).map { MusicSourceRef(it.musicCollectionId, it.trackId) },
+            )
+        }
+        return MusicInheritance.effective(own, inherited)
+    }
+
     suspend fun hasMusic(bookId: Long): Boolean = dao.bookMusic(bookId) != null && dao.sources(bookId).isNotEmpty()
 
     suspend fun bookMusicSettings(bookId: Long): BookMusicSettings? {
@@ -226,9 +304,12 @@ class MusicRepository(
         return BookMusicSettings(music.mode, music.autoplay, dao.sources(bookId), dao.selection(bookId).map { it.trackId })
     }
 
-    /** The tracks to play for a book now; files that disappeared are marked missing and skipped. */
+    /**
+     * The tracks to play for a book now, from its own music or its collection's soundtrack; files
+     * that disappeared are marked missing and skipped.
+     */
     suspend fun resolveBookQueue(bookId: Long, seed: Long): List<TrackEntity> = withContext(Dispatchers.IO) {
-        val settings = bookMusicSettings(bookId) ?: return@withContext emptyList()
+        val plan = effectiveMusic(bookId) ?: return@withContext emptyList()
         val collectionTracks = dao.allCollectionLinks().groupBy({ it.collectionId }, { it.trackId })
         val all = dao.allTracks().associateBy { it.id }
         val available = all.values.filter { track ->
@@ -236,12 +317,8 @@ class MusicRepository(
             if (present == track.missing) dao.setMissing(track.id, !present)
             present
         }.map { it.id }.toSet()
-        val attached = MusicQueueBuilder.attachedTracks(
-            settings.sources.map { MusicSourceRef(it.collectionId, it.trackId) },
-            collectionTracks,
-            available,
-        )
-        MusicQueueBuilder.forBook(settings.mode, attached, settings.selection, seed).mapNotNull { all[it] }
+        val attached = MusicQueueBuilder.attachedTracks(plan.sources, collectionTracks, available)
+        MusicQueueBuilder.forBook(plan.mode, attached, plan.selection, seed).mapNotNull { all[it] }
     }
 
     suspend fun markMissing(trackId: Long) = dao.setMissing(trackId, true)
