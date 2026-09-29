@@ -103,7 +103,7 @@ private fun GeneratedCover(title: String, format: BookFormat) {
     }
 }
 
-private fun coverPalette(seed: String): List<Color> {
+internal fun coverPalette(seed: String): List<Color> {
     val hash = seed.hashCode().absoluteValue
     val palettes = listOf(
         listOf(Color(0xFF2F4858), Color(0xFF33658A)),

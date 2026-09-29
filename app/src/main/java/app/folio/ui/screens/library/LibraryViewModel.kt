@@ -88,6 +88,14 @@ class LibraryViewModel(private val container: AppContainer) : ViewModel() {
 
     init {
         viewModelScope.launch {
+            container.libraryRequest.collect { smart ->
+                if (smart != null) {
+                    _filter.value = LibraryFilter(smart = smart)
+                    container.libraryRequest.value = null
+                }
+            }
+        }
+        viewModelScope.launch {
             container.imports.events.collect { event ->
                 if (event is ImportEvent.Duplicate) _duplicate.value = event.pending
             }

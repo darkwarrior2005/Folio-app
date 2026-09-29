@@ -3,6 +3,8 @@ package app.folio.data.backup
 import app.folio.data.db.BookMusicEntity
 import app.folio.data.db.BookMusicSelectionEntity
 import app.folio.data.db.BookMusicSourceEntity
+import app.folio.data.db.CollectionMusicEntity
+import app.folio.data.db.CollectionMusicSourceEntity
 import app.folio.data.db.MusicCollectionEntity
 import app.folio.data.db.MusicCollectionTrackEntity
 import app.folio.data.db.MusicTagEntity
@@ -65,6 +67,8 @@ data class BackupDocument(
     val bookMusic: List<BookMusicEntity> = emptyList(),
     val bookMusicSources: List<BookMusicSourceEntity> = emptyList(),
     val bookMusicSelections: List<BookMusicSelectionEntity> = emptyList(),
+    val collectionMusic: List<CollectionMusicEntity> = emptyList(),
+    val collectionMusicSources: List<CollectionMusicSourceEntity> = emptyList(),
     val drawnNotes: List<DrawnNoteEntity> = emptyList(),
     val inkStrokes: List<InkStrokeEntity> = emptyList(),
     val settings: String? = null,
@@ -124,6 +128,8 @@ class BackupRepository(
                 bookMusic = db.music().allBookMusic(),
                 bookMusicSources = db.music().allSources(),
                 bookMusicSelections = db.music().allSelections(),
+                collectionMusic = db.music().allCollectionMusic(),
+                collectionMusicSources = db.music().allCollectionSources(),
                 drawnNotes = db.ink().allDrawnNotes(),
                 inkStrokes = db.ink().allStrokes(),
                 settings = settings.exportJson(),
@@ -223,6 +229,8 @@ class BackupRepository(
                 db.collections().deleteAll()
                 db.tags().deleteAll()
                 db.music().deleteAllBookMusic()
+                db.music().deleteAllCollectionSources()
+                db.music().deleteAllCollectionMusic()
                 db.music().deleteAllCollections()
                 db.music().deleteAllTags()
                 db.music().deleteAllTracks()
@@ -278,6 +286,9 @@ class BackupRepository(
                     backup.bookMusic.forEach { dao.upsertBookMusic(it) }
                     dao.insertSources(backup.bookMusicSources)
                     dao.insertSelection(backup.bookMusicSelections)
+                    // After books' collections and the playlists they point at are back.
+                    backup.collectionMusic.forEach { dao.upsertCollectionMusic(it) }
+                    dao.insertCollectionSources(backup.collectionMusicSources)
                 }
             }
 

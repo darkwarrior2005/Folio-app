@@ -9,7 +9,10 @@ enum class BookSort { TITLE, AUTHOR, RECENTLY_OPENED, RECENTLY_ADDED, PROGRESS, 
 enum class LibraryGrouping { NONE, CATEGORY, SERIES, AUTHOR, STATUS, FORMAT }
 
 enum class SmartCollection {
-    RECENTLY_ADDED, RECENTLY_READ, CURRENTLY_READING, FINISHED, NEVER_OPENED, FAVORITES, LONG_BOOKS, SHORT_READS
+    RECENTLY_ADDED, RECENTLY_READ, CURRENTLY_READING, FINISHED, NEVER_OPENED, FAVORITES, LONG_BOOKS, SHORT_READS,
+
+    /** Books in no collection: the ones standing beside the home bookshelf. */
+    UNSORTED,
 }
 
 data class TagRef(val id: Long, val name: String)
@@ -137,6 +140,7 @@ object LibraryQuery {
             book.pageCount?.let { it >= LONG_BOOK_PAGES } ?: (book.fileSize >= LONG_BOOK_BYTES)
         SmartCollection.SHORT_READS ->
             book.pageCount?.let { it in 1 until SHORT_READ_PAGES } ?: (book.fileSize < LONG_BOOK_BYTES / 10)
+        SmartCollection.UNSORTED -> book.collectionIds.isEmpty()
     }
 
     fun sort(books: List<LibraryBook>, sort: BookSort, ascending: Boolean): List<LibraryBook> {

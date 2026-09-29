@@ -64,7 +64,8 @@ class BookMusicCoordinator(
 
     fun onBookOpened(bookId: Long, family: ReaderFamily) {
         scope.launch {
-            val saved = if (MusicSwitchPolicy.supports(family)) music.bookMusicSettings(bookId) else null
+            // The book's own music, or the soundtrack it gets from one of its collections.
+            val saved = if (MusicSwitchPolicy.supports(family)) music.effectiveMusic(bookId) else null
             val plan = BookMusicPlan(
                 bookId = bookId,
                 family = family,

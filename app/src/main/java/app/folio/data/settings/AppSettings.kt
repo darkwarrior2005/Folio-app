@@ -22,6 +22,9 @@ enum class ImportMode { LINK, COPY }
 
 enum class HomeSection { CONTINUE_READING, READING_GOAL, STREAK, RECENTLY_ADDED, COLLECTIONS, ACTIVITY, POMODORO, QUEUE }
 
+/** Bookshelf shows collections as shelves; Classic is the original list of home sections. */
+enum class HomeStyle { BOOKSHELF, CLASSIC }
+
 @Serializable
 data class AppearanceSettings(
     val themeId: String = "paper",
@@ -146,6 +149,7 @@ data class AccessibilitySettings(
 data class HomeSettings(
     val sections: List<HomeSection> = HomeSection.entries.toList(),
     val greeting: Boolean = true,
+    val style: HomeStyle = HomeStyle.BOOKSHELF,
 )
 
 @Serializable

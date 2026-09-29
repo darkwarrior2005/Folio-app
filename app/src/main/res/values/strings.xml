@@ -583,4 +583,51 @@
     <string name="drawing_delete_message">This drawing will be removed from Folio. This can\'t be undone.</string>
     <string name="notes_tab_drawings">Drawings</string>
     <string name="empty_drawings">No drawings yet. In an EPUB or text book, tap Draw while reading.</string>
+
+    <!-- Bookshelf home -->
+    <string name="smart_unsorted">Not on a shelf</string>
+    <string name="home_style">Home screen</string>
+    <string name="home_style_bookshelf">Bookshelf</string>
+    <string name="home_style_classic">Classic</string>
+    <string name="home_other_books">Other books</string>
+    <string name="home_shelf_empty">Empty shelf. Add books to this collection from the library.</string>
+    <string name="home_first_shelf">Your first shelf</string>
+    <string name="home_first_shelf_hint">Create a collection and it becomes a shelf here.</string>
+    <string name="home_open_shelf">Open %1$s</string>
+    <string name="home_book_details">Book details</string>
+    <string name="home_book_by">by %1$s</string>
+    <string name="home_book_read">%1$d%% read</string>
+    <string name="home_book_missing">file missing</string>
+    <string name="home_clock_timer">Focus timer</string>
+    <string name="home_clock_focus">Focus %1$s</string>
+    <string name="home_clock_break">Break %1$s</string>
+    <string name="home_clock_paused">Paused %1$s</string>
+    <string name="home_clock_description">%1$s. %2$s. Opens the focus timer</string>
+    <string name="home_your_library">Collections, categories and tags</string>
+    <string name="home_music_idle_title">Reading music</string>
+    <string name="home_music_idle_message">Choose music for a book or a collection</string>
+    <string name="home_music_library">Music library</string>
+    <string name="home_music_unknown_artist">Unknown artist</string>
+
+    <!-- Reading music sheet (home player) -->
+    <string name="music_assign_title">Reading music</string>
+    <string name="music_assign_subtitle">Choose a book or a collection, then the music it plays when you open it.</string>
+    <string name="music_assign_open">Set reading music for a book or collection</string>
+    <string name="music_assign_books">Books</string>
+    <string name="music_assign_collections">Collections</string>
+    <string name="music_assign_no_books">No PDF or EPUB books found.</string>
+    <string name="music_assign_no_collections">No collections found. Create one and it becomes a shelf.</string>
+    <string name="music_assign_has_music">Has reading music</string>
+    <string name="music_assign_formats_note">Reading music plays for PDF and EPUB books.</string>
+    <string name="music_assign_collection_note">Books in a collection play its music unless they have music of their own.</string>
+    <string name="music_assign_for_book">Music for the book</string>
+    <string name="music_assign_for_collection">Music for the collection</string>
+    <string name="music_assign_use_playing">Add \"%1$s\" (playing now)</string>
+    <string name="music_assign_playlists">Playlists</string>
+    <string name="music_assign_new_playlist">New playlist</string>
+    <string name="music_assign_no_playlists">No playlists yet. Tick some songs below, then tap New playlist.</string>
+    <string name="music_assign_playlist_name">Playlist name</string>
+    <string name="music_assign_selection_kept">This book plays a chosen selection, set in its details. Turning on shuffle replaces it.</string>
+    <string name="music_assign_autoplay">Play when the book is opened</string>
+    <string name="music_assign_save_play">Save and play</string>
 </resources>

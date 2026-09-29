@@ -8,6 +8,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,6 +22,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -38,6 +42,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -52,7 +57,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.folio.R
 import app.folio.core.model.LibraryBook
+import app.folio.core.model.SmartCollection
 import app.folio.data.settings.HomeSection
+import app.folio.data.settings.HomeStyle
 import app.folio.ui.components.BookCover
 import app.folio.ui.components.EmptyState
 import app.folio.ui.components.ProgressBar
@@ -72,7 +79,124 @@ fun HomeScreen(
     onStats: () -> Unit,
     onQueue: () -> Unit,
     onPomodoro: () -> Unit,
+    onSearch: () -> Unit,
+    onSettings: () -> Unit,
+    onMusic: () -> Unit,
+    onLibrarySmart: (SmartCollection) -> Unit,
     viewModel: HomeViewModel = folioViewModel { HomeViewModel(it) },
+) {
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    if (settings.home.style == HomeStyle.BOOKSHELF) {
+        BookshelfHome(
+            viewModel = viewModel,
+            onOpenBook = onOpenBook,
+            onBookDetails = onBookDetails,
+            onCollections = onCollections,
+            onCollection = onCollection,
+            onPomodoro = onPomodoro,
+            onSearch = onSearch,
+            onSettings = onSettings,
+            onMusic = onMusic,
+            onLibrarySmart = onLibrarySmart,
+        )
+    } else {
+        ClassicHome(
+            onOpenBook = onOpenBook,
+            onBookDetails = onBookDetails,
+            onSeeLibrary = onSeeLibrary,
+            onCollections = onCollections,
+            onCollection = onCollection,
+            onStats = onStats,
+            onQueue = onQueue,
+            onPomodoro = onPomodoro,
+            viewModel = viewModel,
+        )
+    }
+}
+
+/**
+ * The bookshelf home: header with the clock, the music player, then the library itself as shelves.
+ * Everything on it comes from the library, collections and player the rest of the app uses.
+ */
+@Composable
+private fun BookshelfHome(
+    viewModel: HomeViewModel,
+    onOpenBook: (Long) -> Unit,
+    onBookDetails: (Long) -> Unit,
+    onCollections: () -> Unit,
+    onCollection: (Long) -> Unit,
+    onPomodoro: () -> Unit,
+    onSearch: () -> Unit,
+    onSettings: () -> Unit,
+    onMusic: () -> Unit,
+    onLibrarySmart: (SmartCollection) -> Unit,
+) {
+    val bookshelf by viewModel.bookshelf.collectAsStateWithLifecycle()
+    val pomodoro by viewModel.pomodoro.collectAsStateWithLifecycle()
+    val remaining by viewModel.pomodoroRemaining.collectAsStateWithLifecycle()
+    val spacing = LocalSpacing.current
+    val openFiles = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        if (uris.isNotEmpty()) viewModel.import(uris.map { it.toString() })
+    }
+    val padding = if (spacing.screenPadding > 16.dp) 16.dp else spacing.screenPadding
+
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val metrics = remember(maxWidth, padding) { shelfMetrics(maxWidth - padding * 2) }
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .statusBarsPadding()
+                .padding(horizontal = padding)
+                .padding(top = 8.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            HomeHeader(
+                pomodoro = pomodoro,
+                remainingMs = remaining,
+                onClock = onPomodoro,
+                onSearch = onSearch,
+                onSettings = onSettings,
+                onLibraryHub = onCollections,
+            )
+            HomeMusicCard(onOpenMusicLibrary = onMusic)
+
+            val shelf = bookshelf
+            when {
+                // Still loading: leave the space empty rather than flash an empty-library message.
+                shelf == null -> Unit
+                shelf.isEmpty -> EmptyState(
+                    title = stringResource(R.string.empty_library_title),
+                    message = stringResource(R.string.empty_library_message),
+                    actionLabel = stringResource(R.string.action_import),
+                    onAction = { openFiles.launch(arrayOf("*/*")) },
+                )
+                else -> Bookcase(
+                    shelf = shelf,
+                    metrics = metrics,
+                    onOpenBook = onOpenBook,
+                    onBookDetails = onBookDetails,
+                    onOpenCollection = onCollection,
+                    onOpenSmart = onLibrarySmart,
+                    onCreateShelf = onCollections,
+                )
+            }
+        }
+    }
+}
+
+/** The original home: configurable sections (continue reading, goal, streak, activity, …). */
+@Composable
+private fun ClassicHome(
+    onOpenBook: (Long) -> Unit,
+    onBookDetails: (Long) -> Unit,
+    onSeeLibrary: () -> Unit,
+    onCollections: () -> Unit,
+    onCollection: (Long) -> Unit,
+    onStats: () -> Unit,
+    onQueue: () -> Unit,
+    onPomodoro: () -> Unit,
+    viewModel: HomeViewModel,
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val continueReading by viewModel.continueReading.collectAsStateWithLifecycle()

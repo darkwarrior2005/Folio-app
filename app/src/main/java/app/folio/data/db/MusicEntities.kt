@@ -113,6 +113,41 @@ data class BookMusicSourceEntity(
 @Serializable
 data class BookMusicSelectionEntity(val bookId: Long, val trackId: Long, val position: Int)
 
+/**
+ * A book collection's soundtrack. Books in the collection play it when they have no music of
+ * their own; the book's own music always wins.
+ */
+@Entity(
+    tableName = "collection_music",
+    foreignKeys = [ForeignKey(CollectionEntity::class, ["id"], ["collectionId"], onDelete = ForeignKey.CASCADE)],
+)
+@Serializable
+data class CollectionMusicEntity(
+    @PrimaryKey val collectionId: Long,
+    val mode: BookMusicMode = BookMusicMode.LOOP,
+    val autoplay: Boolean = true,
+    val updatedAt: Long,
+)
+
+/** One source of a collection's soundtrack: a whole playlist (music collection) or a single track. */
+@Entity(
+    tableName = "collection_music_sources",
+    foreignKeys = [
+        ForeignKey(CollectionEntity::class, ["id"], ["collectionId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(MusicCollectionEntity::class, ["id"], ["musicCollectionId"], onDelete = ForeignKey.CASCADE),
+        ForeignKey(TrackEntity::class, ["id"], ["trackId"], onDelete = ForeignKey.CASCADE),
+    ],
+    indices = [Index("collectionId"), Index("musicCollectionId"), Index("trackId")],
+)
+@Serializable
+data class CollectionMusicSourceEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val collectionId: Long,
+    val musicCollectionId: Long? = null,
+    val trackId: Long? = null,
+    val position: Int,
+)
+
 data class MusicCollectionWithCount(
     @Embedded val collection: MusicCollectionEntity,
     val trackCount: Int,
