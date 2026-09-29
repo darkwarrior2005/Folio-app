@@ -85,6 +85,11 @@ jobs:
           if [ -n "$(git status --porcelain app/schemas)" ]; then
             echo "::warning::Room schema files changed during the build and are not committed. Download the room-schemas artifact and commit them."
             git status --porcelain app/schemas
+            # The same files as one line, for when the artifact can't be downloaded:
+            # echo '<line>' | base64 -d | tar xz
+            git ls-files --others --modified app/schemas | tar cz -T - | base64 -w0
+            echo
+            git ls-files --others --modified app/schemas | xargs sha256sum
           fi
 
       - uses: actions/upload-artifact@v4
