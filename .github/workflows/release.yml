@@ -79,6 +79,19 @@ jobs:
           name: folio-apk
           path: dist/*.apk
 
+      # Room writes app/schemas/<db>/<version>.json during the build. Migration tests need them committed.
+      - name: Check Room schemas are committed
+        run: |
+          if [ -n "$(git status --porcelain app/schemas)" ]; then
+            echo "::warning::Room schema files changed during the build and are not committed. Download the room-schemas artifact and commit them."
+            git status --porcelain app/schemas
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: room-schemas
+          path: app/schemas
+
       - name: Publish GitHub release
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
