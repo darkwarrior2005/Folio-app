@@ -68,17 +68,31 @@ class MainActivity : AppCompatActivity() {
                 applySecureFlag(settings.privacy.hideInRecents)
             }
 
+            var bedtimeDismissedUntil by androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(0L) }
+
             CompositionLocalProvider(LocalContainer provides container) {
                 FolioAppTheme(settings) {
                     Surface(Modifier.fillMaxSize()) {
                         app.folio.ui.components.IncognitoKeyboard(settings.privacy.incognitoKeyboard) {
-                            FolioRoot(
-                                settings = settings,
-                                locked = isLocked && settings.privacy.lockEnabled,
-                                onUnlocked = { locked.value = false },
-                                openBookId = openBook,
-                                onOpenHandled = { openBookRequest.value = null },
-                            )
+                            app.folio.ui.components.NightLightOverlay(
+                                settings = settings.nightLight,
+                                reduceMotion = settings.accessibility.reduceMotion,
+                            ) {
+                                app.folio.ui.components.BedtimeNudge(
+                                    settings = settings.nightLight,
+                                    dismissedUntil = bedtimeDismissedUntil,
+                                    onSnooze = { bedtimeDismissedUntil = it },
+                                    onGoodNight = { bedtimeDismissedUntil = it },
+                                ) {
+                                    FolioRoot(
+                                        settings = settings,
+                                        locked = isLocked && settings.privacy.lockEnabled,
+                                        onUnlocked = { locked.value = false },
+                                        openBookId = openBook,
+                                        onOpenHandled = { openBookRequest.value = null },
+                                    )
+                                }
+                            }
                         }
                     }
                 }

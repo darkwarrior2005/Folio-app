@@ -24,6 +24,7 @@ object Routes {
     const val NOTIFICATIONS = "settings/notifications"
     const val BACKUP = "settings/backup"
     const val ABOUT = "settings/about"
+    const val NIGHT_LIGHT = "settings/night-light"
 
     const val BOOK_ID = "bookId"
     const val COLLECTION_ID = "collectionId"

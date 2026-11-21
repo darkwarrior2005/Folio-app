@@ -28,7 +28,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -114,6 +116,9 @@ fun SettingsScreen(
             ) { onNavigate(app.folio.ui.nav.Routes.THEMES) }
             NavigationRow(stringResource(R.string.settings_reader), null) {
                 onNavigate(app.folio.ui.nav.Routes.READER_SETTINGS)
+            }
+            NavigationRow(stringResource(R.string.settings_night_light), null) {
+                onNavigate(app.folio.ui.nav.Routes.NIGHT_LIGHT)
             }
             NavigationRow(stringResource(R.string.settings_library), null) {
                 onNavigate(app.folio.ui.nav.Routes.LIBRARY_SETTINGS)
@@ -766,6 +771,79 @@ fun PrivacyScreen(
             },
             onDismiss = { confirmEntry = null },
         )
+    }
+}
+
+@Composable
+fun NightLightScreen(
+    onBack: () -> Unit,
+    viewModel: SettingsViewModel = folioViewModel { SettingsViewModel(it) },
+) {
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val nightLight = settings.nightLight
+
+    fun update(transform: (app.folio.data.settings.NightLightSettings) -> app.folio.data.settings.NightLightSettings) {
+        viewModel.update { it.copy(nightLight = transform(it.nightLight)) }
+    }
+
+    SettingsScaffold("Night light", onBack) {
+        app.folio.data.settings.NightLightMode.entries.forEach { mode ->
+            androidx.compose.material3.Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.RadioButton(
+                    selected = nightLight.mode == mode,
+                    onClick = { update { it.copy(mode = mode) } },
+                )
+                Text(mode.name.lowercase().replaceFirstChar(Char::uppercase))
+            }
+        }
+        if (nightLight.mode != app.folio.data.settings.NightLightMode.OFF) {
+            SliderRow(
+                label = "Warmth",
+                value = nightLight.warmth,
+                range = 0f..1f,
+                display = "${(nightLight.warmth * 100).toInt()}%",
+            ) { v -> update { s -> s.copy(warmth = v) } }
+            SliderRow(
+                label = "Dim",
+                value = nightLight.dim,
+                range = 0f..1f,
+                display = "${(nightLight.dim * 100).toInt()}%",
+            ) { v -> update { s -> s.copy(dim = v) } }
+        }
+        if (nightLight.mode == app.folio.data.settings.NightLightMode.SCHEDULED) {
+            MinutesOfDayRow("Start", nightLight.startMinutes) { update { s -> s.copy(startMinutes = it) } }
+            MinutesOfDayRow("End", nightLight.endMinutes) { update { s -> s.copy(endMinutes = it) } }
+        }
+        Spacer(Modifier.height(16.dp))
+        Text("Bedtime", style = MaterialTheme.typography.titleSmall)
+        SwitchRow("Remind me at bedtime", nightLight.bedtimeReminder) { checked ->
+            update { it.copy(bedtimeReminder = checked) }
+        }
+        if (nightLight.bedtimeReminder) {
+            MinutesOfDayRow("Bedtime", nightLight.bedtimeMinutes) { update { s -> s.copy(bedtimeMinutes = it) } }
+        }
+    }
+}
+
+@Composable
+private fun MinutesOfDayRow(label: String, minutes: Int, onChange: (Int) -> Unit) {
+    val hour = minutes / 60
+    val minute = minutes % 60
+    androidx.compose.material3.Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { onChange(((minutes - 15) + 1440) % 1440) }) {
+                Icon(Icons.Rounded.Remove, contentDescription = "Earlier")
+            }
+            Text("%02d:%02d".format(hour, minute))
+            IconButton(onClick = { onChange((minutes + 15) % 1440) }) {
+                Icon(Icons.Rounded.Add, contentDescription = "Later")
+            }
+        }
     }
 }
 

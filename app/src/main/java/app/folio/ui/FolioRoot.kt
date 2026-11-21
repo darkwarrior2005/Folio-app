@@ -401,6 +401,9 @@ private fun FolioNavHost(
         }
 
         composable(Routes.THEMES) { ThemePickerScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.NIGHT_LIGHT) {
+            app.folio.ui.screens.settings.NightLightScreen(onBack = { navController.popBackStack() })
+        }
         composable(Routes.READER_SETTINGS) { ReaderDefaultsScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.LIBRARY_SETTINGS) { LibrarySettingsScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.POMODORO_SETTINGS) { PomodoroSettingsScreen(onBack = { navController.popBackStack() }) }
