@@ -12,6 +12,9 @@ class FolioApp : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
+        uy.kohesive.injekt.Injekt.importModule(
+            app.folio.manga.MangaSourceModule(this, container.settings),
+        )
         container.bookMusic.start()
 
         container.appScope.launch {

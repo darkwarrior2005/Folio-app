@@ -44,6 +44,11 @@ class AppContainer(context: Context) {
     val reading: ReadingRepository by lazy { ReadingRepository(database) }
     val search: SearchRepository by lazy { SearchRepository(database) }
     val manga: app.folio.data.repo.MangaRepository by lazy { app.folio.data.repo.MangaRepository(database) }
+    val mangaAccess: app.folio.manga.MangaAccess by lazy { app.folio.manga.MangaAccess(settings) }
+    val sourceManager: app.folio.manga.source.SourceManager by lazy { app.folio.manga.source.SourceManager() }
+    val extensionManager: app.folio.manga.extension.ExtensionManager by lazy {
+        app.folio.manga.extension.ExtensionManager(appContext, database.manga(), settings, sourceManager)
+    }
 
     val music: app.folio.data.repo.MusicRepository by lazy {
         app.folio.data.repo.MusicRepository(database, files, cache)
