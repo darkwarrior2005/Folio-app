@@ -161,6 +161,14 @@ private fun BookshelfHome(
             )
             HomeMusicCard(onOpenMusicLibrary = onMusic)
 
+            val resumeBook by viewModel.resumeBook.collectAsStateWithLifecycle()
+            val surpriseBook by viewModel.surpriseBook.collectAsStateWithLifecycle()
+            WelcomeBackCard(
+                resumeBook = surpriseBook ?: resumeBook,
+                onResume = { onOpenBook(it); viewModel.clearSurprise() },
+                onSurprise = viewModel::surprise,
+            )
+
             val shelf = bookshelf
             when {
                 // Still loading: leave the space empty rather than flash an empty-library message.
@@ -237,6 +245,16 @@ private fun ClassicHome(
         // Only take a list slot while music is queued, so an idle player leaves no gap.
         if (nowPlaying.hasQueue) {
             item(key = "now-playing") { app.folio.ui.screens.music.NowPlayingBar() }
+        }
+
+        item(key = "welcome-back") {
+            val resumeBook by viewModel.resumeBook.collectAsStateWithLifecycle()
+            val surpriseBook by viewModel.surpriseBook.collectAsStateWithLifecycle()
+            WelcomeBackCard(
+                resumeBook = surpriseBook ?: resumeBook,
+                onResume = { onOpenBook(it); viewModel.clearSurprise() },
+                onSurprise = viewModel::surprise,
+            )
         }
 
         settings.home.sections.forEach { section ->

@@ -109,6 +109,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         backgroundedAt = System.currentTimeMillis()
+        app.folio.widget.ContinueReadingWidget.refreshAll(this)
     }
 
     override fun onStart() {
@@ -137,6 +138,11 @@ class MainActivity : AppCompatActivity() {
     /** Files arriving from "Open with" or a share are copied in, since the grant is temporary. */
     private fun handleIntent(intent: Intent?) {
         when (intent?.action) {
+            app.folio.widget.ACTION_OPEN_BOOK -> {
+                val bookId = intent.getLongExtra(app.folio.widget.EXTRA_BOOK_ID, -1)
+                if (bookId > 0) openBookRequest.value = bookId
+            }
+
             Intent.ACTION_VIEW -> intent.data?.let { uri ->
                 awaitingOpen = true
                 container.imports.enqueue(listOf(uri.toString()), forceCopy = true)

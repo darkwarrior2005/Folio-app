@@ -296,6 +296,8 @@
     <string name="manga_find_online">Find manga online</string>
     <string name="manga_extensions">Extensions</string>
     <string name="manga_downloads">Downloads</string>
+    <string name="widget_no_book">Nothing in progress</string>
+    <string name="widget_description">Shows the book you\'re reading; tap to jump back in.</string>
     <string name="settings_show_progress">Show progress</string>
     <string name="settings_show_tags">Show tags</string>
     <string name="settings_show_file_type">Show file type</string>
