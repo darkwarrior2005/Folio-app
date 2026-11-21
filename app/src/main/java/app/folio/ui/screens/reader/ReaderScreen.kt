@@ -692,6 +692,7 @@ internal fun app.folio.reader.api.BookOpenError.messageRes(): Int = when (this) 
     app.folio.reader.api.BookOpenError.PermissionDenied -> R.string.error_permission
     app.folio.reader.api.BookOpenError.Unsupported -> R.string.error_unsupported
     app.folio.reader.api.BookOpenError.Empty -> R.string.error_empty
+    app.folio.reader.api.BookOpenError.DrmProtected -> R.string.error_drm
     app.folio.reader.api.BookOpenError.PasswordRequired -> R.string.dialog_password_title
     app.folio.reader.api.BookOpenError.WrongPassword -> R.string.dialog_password_wrong
     is app.folio.reader.api.BookOpenError.Corrupted -> R.string.error_corrupted

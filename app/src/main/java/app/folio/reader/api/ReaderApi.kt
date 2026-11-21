@@ -53,6 +53,7 @@ sealed interface BookOpenError {
     data object WrongPassword : BookOpenError
     data object Unsupported : BookOpenError
     data object Empty : BookOpenError
+    data object DrmProtected : BookOpenError
     data class Corrupted(val detail: String? = null) : BookOpenError
     data class Failed(val detail: String? = null) : BookOpenError
 }

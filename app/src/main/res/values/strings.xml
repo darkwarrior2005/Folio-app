@@ -217,6 +217,7 @@
     <string name="error_unsupported">This format is not supported.</string>
     <string name="error_corrupted">The file appears to be damaged.</string>
     <string name="error_empty">There is nothing to read in this file.</string>
+    <string name="error_drm">This book is protected and can\'t be opened.</string>
     <string name="error_generic">Something went wrong while opening this book.</string>
     <string name="error_rar5">This CBR uses RAR5 compression, which cannot be opened. Converting it to CBZ will work.</string>
 
