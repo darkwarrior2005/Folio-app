@@ -716,6 +716,29 @@ fun PrivacyScreen(
         SwitchRow(stringResource(R.string.settings_hide_recents), privacy.hideInRecents) { checked ->
             viewModel.update { it.copy(privacy = it.privacy.copy(hideInRecents = checked)) }
         }
+
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.settings_browsing), style = MaterialTheme.typography.titleSmall)
+        SwitchRow(stringResource(R.string.settings_incognito_keyboard), privacy.incognitoKeyboard) { checked ->
+            viewModel.update { it.copy(privacy = it.privacy.copy(incognitoKeyboard = checked)) }
+        }
+        SwitchRow(stringResource(R.string.settings_forget_browsing), privacy.forgetBrowsing) { checked ->
+            viewModel.update { it.copy(privacy = it.privacy.copy(forgetBrowsing = checked)) }
+        }
+        var clearing by remember { mutableStateOf(false) }
+        var signOutToo by remember { mutableStateOf(false) }
+        androidx.compose.material3.Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.Checkbox(checked = signOutToo, onCheckedChange = { signOutToo = it })
+            Text(stringResource(R.string.settings_sign_out_sites))
+        }
+        TextButton(onClick = { clearing = true }) { Text(stringResource(R.string.settings_clear_browsing_now)) }
+        if (clearing) {
+            val container = app.folio.ui.LocalContainer.current
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                app.folio.data.privacy.BrowsingData(container.appContext, container).forget(signOutToo)
+                clearing = false
+            }
+        }
     }
 
     pinEntry?.let { value ->

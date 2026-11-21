@@ -43,6 +43,9 @@ class FolioApp : Application(), SingletonImageLoader.Factory {
             if (settings.storage.fullTextIndexing) {
                 IndexWorker.schedule(this@FolioApp)
             }
+            if (settings.privacy.forgetBrowsing) {
+                app.folio.data.privacy.BrowsingData(this@FolioApp, container).forget(includeSiteData = false)
+            }
         }
     }
 }

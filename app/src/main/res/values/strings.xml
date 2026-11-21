@@ -313,6 +313,11 @@
     <string name="settings_biometric">Unlock with biometrics</string>
     <string name="settings_lock_timeout">Lock after leaving the app</string>
     <string name="settings_hide_recents">Hide content in recent apps</string>
+    <string name="settings_browsing">Searching and browsing</string>
+    <string name="settings_incognito_keyboard">Incognito keyboard</string>
+    <string name="settings_forget_browsing">Forget browsing on each start</string>
+    <string name="settings_sign_out_sites">Also sign out of source websites</string>
+    <string name="settings_clear_browsing_now">Clear browsing data now</string>
     <string name="settings_backup">Back up library data</string>
     <string name="settings_restore">Restore from backup</string>
     <string name="settings_export_annotations">Export all notes and highlights</string>

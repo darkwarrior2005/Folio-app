@@ -71,13 +71,15 @@ class MainActivity : AppCompatActivity() {
             CompositionLocalProvider(LocalContainer provides container) {
                 FolioAppTheme(settings) {
                     Surface(Modifier.fillMaxSize()) {
-                        FolioRoot(
-                            settings = settings,
-                            locked = isLocked && settings.privacy.lockEnabled,
-                            onUnlocked = { locked.value = false },
-                            openBookId = openBook,
-                            onOpenHandled = { openBookRequest.value = null },
-                        )
+                        app.folio.ui.components.IncognitoKeyboard(settings.privacy.incognitoKeyboard) {
+                            FolioRoot(
+                                settings = settings,
+                                locked = isLocked && settings.privacy.lockEnabled,
+                                onUnlocked = { locked.value = false },
+                                openBookId = openBook,
+                                onOpenHandled = { openBookRequest.value = null },
+                            )
+                        }
                     }
                 }
             }
