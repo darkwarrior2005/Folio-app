@@ -1,5 +1,6 @@
 package app.folio.ui.screens.manga
 
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn

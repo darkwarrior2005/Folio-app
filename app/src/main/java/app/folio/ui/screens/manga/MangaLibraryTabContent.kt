@@ -1,5 +1,6 @@
 package app.folio.ui.screens.manga
 
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column

@@ -74,7 +74,7 @@ class RemoteComicSource(
     private fun preload(fromIndex: Int) {
         scope.launch {
             coroutineScope {
-                ((fromIndex + 1)..(fromIndex + PRELOAD_AHEAD)).filter { it < pageCount && it !in cache }
+                ((fromIndex + 1)..(fromIndex + PRELOAD_AHEAD)).filter { it < pageCount && !cache.containsKey(it) }
                     .take(PARALLEL)
                     .map { async { fetchPage(it)?.let { bytes -> cache[it] = bytes } } }
             }

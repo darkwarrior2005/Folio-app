@@ -1,5 +1,6 @@
 package app.folio.ui.screens.manga
 
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items

@@ -11,6 +11,7 @@ import app.folio.FolioApp
 import app.folio.MainActivity
 import app.folio.R
 import app.folio.core.model.ComfortPicks
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 
 const val ACTION_OPEN_BOOK = "app.folio.widget.ACTION_OPEN_BOOK"
@@ -33,7 +34,7 @@ class ContinueReadingWidget : AppWidgetProvider() {
         private fun updateWidget(context: Context, manager: AppWidgetManager, widgetId: Int) {
             val container = (context.applicationContext as? FolioApp)?.container
             val resume = runBlocking {
-                val books = container?.library?.libraryBooks?.let { kotlinx.coroutines.flow.first(it) } ?: emptyList()
+                val books = container?.library?.libraryBooks?.first() ?: emptyList()
                 ComfortPicks.resume(books)
             }
 
