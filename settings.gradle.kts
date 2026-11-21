@@ -17,6 +17,11 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Only for QuickJS: the extension sandbox's JS engine isn't on Maven Central.
+        exclusiveContent {
+            forRepository { maven("https://www.jitpack.io") }
+            filter { includeGroup("com.github.zhanghai.quickjs-java") }
+        }
     }
 }
 
