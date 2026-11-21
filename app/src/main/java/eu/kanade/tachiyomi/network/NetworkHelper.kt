@@ -1,8 +1,12 @@
 package eu.kanade.tachiyomi.network
 
 import android.content.Context
+import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UncaughtExceptionInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import java.io.File
@@ -37,7 +41,13 @@ class NetworkHelper(private val context: Context, private val userAgentProvider:
         .addInterceptor(UncaughtExceptionInterceptor())
         .addInterceptor(UserAgentInterceptor(userAgentProvider))
 
-    val client: OkHttpClient by lazy { baseClientBuilder().build() }
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
+    val client: OkHttpClient by lazy {
+        baseClientBuilder()
+            .addInterceptor(CloudflareInterceptor(context, cookieJar, scope, userAgentProvider))
+            .build()
+    }
 
     fun defaultUserAgentProvider(): String = userAgentProvider()
 
