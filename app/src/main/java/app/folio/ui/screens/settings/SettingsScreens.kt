@@ -138,6 +138,9 @@ fun SettingsScreen(
             NavigationRow(stringResource(R.string.manga_downloads), null) {
                 onNavigate(app.folio.ui.nav.Routes.MANGA_DOWNLOADS)
             }
+            NavigationRow(stringResource(R.string.web_from_the_web), null) {
+                onNavigate(app.folio.ui.nav.Routes.web())
+            }
             NavigationRow(stringResource(R.string.settings_notifications), null) {
                 onNavigate(app.folio.ui.nav.Routes.NOTIFICATIONS)
             }

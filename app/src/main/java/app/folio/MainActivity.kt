@@ -155,9 +155,13 @@ class MainActivity : AppCompatActivity() {
                     @Suppress("DEPRECATION")
                     intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
                 }
-                uri?.let {
+                if (uri != null) {
                     awaitingOpen = true
-                    container.imports.enqueue(listOf(it.toString()), forceCopy = true)
+                    container.imports.enqueue(listOf(uri.toString()), forceCopy = true)
+                } else {
+                    val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+                    val url = text?.let { Regex("""https?://\S+""").find(it)?.value }
+                    if (url != null) container.pendingWebUrl.value = url
                 }
             }
 

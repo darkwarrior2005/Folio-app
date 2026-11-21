@@ -104,6 +104,14 @@ fun FolioRoot(
         }
     }
 
+    val pendingWebUrl by LocalContainer.current.pendingWebUrl.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingWebUrl) {
+        pendingWebUrl?.let { url ->
+            navController.navigate(Routes.web(url))
+            LocalContainer.current.pendingWebUrl.value = null
+        }
+    }
+
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth.value >= TABLET_WIDTH_DP
         val backStackEntry by navController.currentBackStackEntryAsState()
@@ -507,6 +515,17 @@ private fun FolioNavHost(
                     onDone = { navController.popBackStack() },
                 )
             }
+        }
+
+        composable(
+            route = Routes.WEB,
+            arguments = listOf(navArgument(Routes.SOURCE_URL) { type = NavType.StringType; defaultValue = "" }),
+        ) { entry ->
+            app.folio.ui.screens.web.WebScreen(
+                initialUrl = entry.arguments?.getString(Routes.SOURCE_URL)?.takeIf { it.isNotBlank() },
+                onBack = { navController.popBackStack() },
+                onOpenBook = { navController.navigate(Routes.reader(it)) },
+            )
         }
     }
 }

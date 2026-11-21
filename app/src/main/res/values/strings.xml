@@ -303,6 +303,7 @@
     <string name="setting_reading_ruler">Reading ruler</string>
     <string name="setting_page_turn_sound">Page-turn sound</string>
     <string name="setting_page_turn_haptic">Page-turn haptic tick</string>
+    <string name="web_from_the_web">From the web</string>
     <string name="widget_description">Shows the book you\'re reading; tap to jump back in.</string>
     <string name="settings_show_progress">Show progress</string>
     <string name="settings_show_tags">Show tags</string>

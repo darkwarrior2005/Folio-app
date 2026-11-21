@@ -63,6 +63,11 @@ class AppContainer(context: Context) {
         app.folio.manga.download.MangaChapterLoader(downloadProvider, files)
     }
 
+    val web: app.folio.web.WebLibrary by lazy { app.folio.web.WebLibrary(appContext, this) }
+
+    /** A link shared into the app with no file attached; FolioRoot navigates to From the web with it. */
+    val pendingWebUrl = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
     val music: app.folio.data.repo.MusicRepository by lazy {
         app.folio.data.repo.MusicRepository(database, files, cache)
     }

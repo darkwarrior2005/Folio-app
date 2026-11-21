@@ -90,4 +90,7 @@ object Routes {
     const val MANGA_SOURCE_WEBVIEW = "manga/webview/{$SOURCE_ID}?$SOURCE_URL={$SOURCE_URL}"
     fun mangaSourceWebView(sourceId: Long, url: String) =
         "manga/webview/$sourceId?$SOURCE_URL=${android.net.Uri.encode(url)}"
+
+    const val WEB = "web?$SOURCE_URL={$SOURCE_URL}"
+    fun web(url: String? = null) = "web?$SOURCE_URL=${android.net.Uri.encode(url.orEmpty())}"
 }
