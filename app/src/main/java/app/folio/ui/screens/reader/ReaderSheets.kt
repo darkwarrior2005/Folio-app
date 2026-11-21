@@ -38,6 +38,9 @@ import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Gesture
 import androidx.compose.material.icons.rounded.NearMe
 import androidx.compose.material.icons.rounded.NoteAdd
+import androidx.compose.material.icons.rounded.FormatQuote
+import androidx.compose.material.icons.rounded.Translate
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.CircularProgressIndicator
@@ -707,6 +710,7 @@ fun SelectionToolbar(
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    bookTitle: String = "",
 ) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
@@ -741,9 +745,18 @@ fun SelectionToolbar(
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             IconButton(onClick = onNote) {
                 Icon(Icons.Rounded.NoteAdd, contentDescription = stringResource(R.string.action_add_note))
+            }
+            IconButton(onClick = { app.folio.ui.share.lookUp(context, selection.text) }) {
+                Icon(Icons.Rounded.Translate, contentDescription = stringResource(R.string.action_look_up))
+            }
+            IconButton(onClick = { app.folio.ui.share.QuoteCard.share(context, selection.text, bookTitle) }) {
+                Icon(Icons.Rounded.FormatQuote, contentDescription = stringResource(R.string.action_quote_card))
             }
             IconButton(
                 onClick = {

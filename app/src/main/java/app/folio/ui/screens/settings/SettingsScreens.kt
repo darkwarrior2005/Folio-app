@@ -410,6 +410,15 @@ fun ReaderDefaultsScreen(
         SwitchRow(stringResource(R.string.reader_focus_mode), settings.behavior.focusModeByDefault) { checked ->
             viewModel.update { it.copy(behavior = it.behavior.copy(focusModeByDefault = checked)) }
         }
+        SwitchRow(stringResource(R.string.setting_reading_ruler), settings.behavior.readingRuler) { checked ->
+            viewModel.update { it.copy(behavior = it.behavior.copy(readingRuler = checked)) }
+        }
+        SwitchRow(stringResource(R.string.setting_page_turn_sound), settings.behavior.pageTurnSound) { checked ->
+            viewModel.update { it.copy(behavior = it.behavior.copy(pageTurnSound = checked)) }
+        }
+        SwitchRow(stringResource(R.string.setting_page_turn_haptic), settings.behavior.pageTurnHaptic) { checked ->
+            viewModel.update { it.copy(behavior = it.behavior.copy(pageTurnHaptic = checked)) }
+        }
         SwitchRow(stringResource(R.string.setting_zoom_lock_button), settings.behavior.zoomLockButton) { checked ->
             viewModel.update { it.copy(behavior = it.behavior.copy(zoomLockButton = checked)) }
         }

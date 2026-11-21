@@ -252,6 +252,15 @@ fun ReaderScreen(
             is ReaderUiState.Ready -> {
                 state.engine.Content(state.host)
 
+                if (settings.behavior.readingRuler && !scribble.active) {
+                    ReadingRuler()
+                }
+                PageTurnEffect(
+                    page = position.page ?: 0,
+                    soundEnabled = settings.behavior.pageTurnSound,
+                    hapticEnabled = settings.behavior.pageTurnHaptic,
+                )
+
                 val inkOnPages = state.engine.family == ReaderFamily.PDF || state.engine.family == ReaderFamily.COMIC
                 val chromeVisible = controlsVisible && !focusMode && !scribble.active
 
@@ -342,6 +351,7 @@ fun ReaderScreen(
                         onDelete = viewModel::deleteSelectedHighlight,
                         onDismiss = viewModel::clearSelection,
                         modifier = Modifier.align(Alignment.BottomCenter),
+                        bookTitle = state.title,
                     )
                 }
 
