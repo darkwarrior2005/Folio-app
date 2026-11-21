@@ -1,7 +1,7 @@
 package eu.kanade.tachiyomi.network
 
 import android.content.Context
-import com.whl.quickjs.wrapper.QuickJSContext
+import app.cash.quickjs.QuickJs
 
 /**
  * Runs a source's own site-check script (Cloudflare-adjacent anti-bot JS that doesn't need a
@@ -12,11 +12,11 @@ class JavaScriptEngine(private val context: Context) {
     suspend fun evaluate(script: String): String? = kotlinx.coroutines.withContext(
         kotlinx.coroutines.Dispatchers.Default,
     ) {
-        val quickJs = QuickJSContext.create()
+        val quickJs = QuickJs.create()
         try {
             quickJs.evaluate(script)?.toString()
         } finally {
-            quickJs.destroy()
+            quickJs.close()
         }
     }
 }

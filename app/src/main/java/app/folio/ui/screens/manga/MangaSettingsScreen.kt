@@ -61,11 +61,11 @@ private fun StepperRow(label: String, value: Int, range: IntRange, onValueChange
         Text(label)
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { if (value > range.first) onValueChange(value - 1) }) {
-                Icon(androidx.compose.material.icons.Icons.Rounded.Remove, contentDescription = "Decrease")
+                Icon(androidx.compose.material.icons.Icons.Filled.Remove, contentDescription = "Decrease")
             }
             Text(value.toString())
             IconButton(onClick = { if (value < range.last) onValueChange(value + 1) }) {
-                Icon(androidx.compose.material.icons.Icons.Rounded.Add, contentDescription = "Increase")
+                Icon(androidx.compose.material.icons.Icons.Filled.Add, contentDescription = "Increase")
             }
         }
     }

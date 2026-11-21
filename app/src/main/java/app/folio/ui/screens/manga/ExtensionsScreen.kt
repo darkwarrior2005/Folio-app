@@ -92,10 +92,10 @@ private fun InstalledExtensionRow(ext: InstalledExtension, viewModel: Extensions
                     onCheckedChange = { viewModel.setEnabled(ext.packageName, it) },
                 )
                 IconButton(onClick = { onSourceSettings(ext.packageName) }) {
-                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Settings, contentDescription = "Settings")
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Settings, contentDescription = "Settings")
                 }
                 IconButton(onClick = { viewModel.uninstall(ext.packageName) }) {
-                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Delete, contentDescription = "Uninstall")
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Delete, contentDescription = "Uninstall")
                 }
             }
         },
@@ -132,7 +132,7 @@ private fun RepositoriesList(viewModel: ExtensionsViewModel) {
                 supportingContent = { Text(repo.baseUrl) },
                 trailingContent = {
                     IconButton(onClick = { viewModel.removeRepo(repo.id) }) {
-                        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Delete, contentDescription = "Remove")
+                        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Delete, contentDescription = "Remove")
                     }
                 },
             )

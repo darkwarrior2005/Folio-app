@@ -95,10 +95,10 @@ private fun FeedsTab(viewModel: WebViewModel) {
                     trailingContent = {
                         Row {
                             IconButton(onClick = { viewModel.openFeed(feed) }) {
-                                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Refresh, contentDescription = "Load")
+                                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Refresh, contentDescription = "Load")
                             }
                             IconButton(onClick = { viewModel.removeFeed(feed) }) {
-                                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Delete, contentDescription = "Remove")
+                                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Delete, contentDescription = "Remove")
                             }
                         }
                     },

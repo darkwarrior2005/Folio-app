@@ -744,7 +744,7 @@ fun PrivacyScreen(
         }
         var clearing by remember { mutableStateOf(false) }
         var signOutToo by remember { mutableStateOf(false) }
-        androidx.compose.material3.Row(verticalAlignment = Alignment.CenterVertically) {
+        androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.material3.Checkbox(checked = signOutToo, onCheckedChange = { signOutToo = it })
             Text(stringResource(R.string.settings_sign_out_sites))
         }
@@ -800,7 +800,7 @@ fun NightLightScreen(
 
     SettingsScaffold("Night light", onBack) {
         app.folio.data.settings.NightLightMode.entries.forEach { mode ->
-            androidx.compose.material3.Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.foundation.layout.Row(verticalAlignment = Alignment.CenterVertically) {
                 androidx.compose.material3.RadioButton(
                     selected = nightLight.mode == mode,
                     onClick = { update { it.copy(mode = mode) } },
@@ -841,7 +841,7 @@ fun NightLightScreen(
 private fun MinutesOfDayRow(label: String, minutes: Int, onChange: (Int) -> Unit) {
     val hour = minutes / 60
     val minute = minutes % 60
-    androidx.compose.material3.Row(
+    androidx.compose.foundation.layout.Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -849,11 +849,11 @@ private fun MinutesOfDayRow(label: String, minutes: Int, onChange: (Int) -> Unit
         Text(label)
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { onChange(((minutes - 15) + 1440) % 1440) }) {
-                Icon(Icons.Rounded.Remove, contentDescription = "Earlier")
+                Icon(Icons.Filled.Remove, contentDescription = "Earlier")
             }
             Text("%02d:%02d".format(hour, minute))
             IconButton(onClick = { onChange((minutes + 15) % 1440) }) {
-                Icon(Icons.Rounded.Add, contentDescription = "Later")
+                Icon(Icons.Filled.Add, contentDescription = "Later")
             }
         }
     }

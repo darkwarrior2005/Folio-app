@@ -36,7 +36,7 @@ abstract class HttpSource : CatalogueSource {
     /** Base site URL, with no trailing slash. */
     abstract val baseUrl: String
 
-    open val id: Long get() = generateId(name, lang, versionId)
+    override val id: Long get() = generateId(name, lang, versionId)
 
     open val versionId: Int = 1
 

@@ -16,7 +16,6 @@ fun WebView.matchUserAgentClientHints(userAgent: String) {
         WebSettingsCompat.setUserAgentMetadata(
             settings,
             androidx.webkit.UserAgentMetadata.Builder()
-                .setBrands(current.brandVersionList)
                 .setFullVersion(current.fullVersion)
                 .setPlatform(current.platform)
                 .setMobile(current.isMobile)
