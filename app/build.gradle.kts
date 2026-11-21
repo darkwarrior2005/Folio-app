@@ -24,8 +24,8 @@ android {
         applicationId = "app.folio.reader"
         minSdk = 26
         targetSdk = 36
-        versionCode = 15
-        versionName = "1.5.0"
+        versionCode = 16
+        versionName = "1.6.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -134,6 +134,19 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.commonmark)
     implementation(libs.jsoup)
+
+    // Mihon-compatible manga source API and extension support.
+    implementation(libs.okhttp)
+    implementation(libs.okhttp.brotli)
+    implementation(libs.okhttp.zstd)
+    implementation(libs.rxjava)
+    implementation(libs.injekt.core)
+    implementation(libs.kotlinx.serialization.json.okio)
+    implementation(libs.kotlinx.serialization.protobuf)
+    implementation(libs.quickjs.android)
+    implementation(libs.imagedecoder)
+    implementation(libs.androidx.preference)
+    implementation(libs.coil.network.okhttp)
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

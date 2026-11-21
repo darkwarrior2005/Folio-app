@@ -28,7 +28,7 @@ import kotlinx.coroutines.SupervisorJob
  */
 class AppContainer(context: Context) {
 
-    private val appContext = context.applicationContext
+    val appContext = context.applicationContext
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
@@ -43,6 +43,30 @@ class AppContainer(context: Context) {
     val ink: app.folio.data.repo.InkRepository by lazy { app.folio.data.repo.InkRepository(database) }
     val reading: ReadingRepository by lazy { ReadingRepository(database) }
     val search: SearchRepository by lazy { SearchRepository(database) }
+    val manga: app.folio.data.repo.MangaRepository by lazy { app.folio.data.repo.MangaRepository(database) }
+    val mangaAccess: app.folio.manga.MangaAccess by lazy { app.folio.manga.MangaAccess(settings) }
+    val sourceManager: app.folio.manga.source.SourceManager by lazy { app.folio.manga.source.SourceManager() }
+    val extensionManager: app.folio.manga.extension.ExtensionManager by lazy {
+        app.folio.manga.extension.ExtensionManager(appContext, database.manga(), settings, sourceManager)
+    }
+
+    val downloadProvider: app.folio.manga.download.DownloadProvider by lazy {
+        app.folio.manga.download.DownloadProvider(appContext)
+    }
+    val downloadManager: app.folio.manga.download.DownloadManager by lazy {
+        app.folio.manga.download.DownloadManager(downloadProvider, database.manga())
+    }
+    val downloader: app.folio.manga.download.Downloader by lazy {
+        app.folio.manga.download.Downloader(downloadProvider, settings, appScope)
+    }
+    val mangaChapterLoader: app.folio.manga.download.MangaChapterLoader by lazy {
+        app.folio.manga.download.MangaChapterLoader(downloadProvider, files)
+    }
+
+    val web: app.folio.web.WebLibrary by lazy { app.folio.web.WebLibrary(appContext, this) }
+
+    /** A link shared into the app with no file attached; FolioRoot navigates to From the web with it. */
+    val pendingWebUrl = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
 
     val music: app.folio.data.repo.MusicRepository by lazy {
         app.folio.data.repo.MusicRepository(database, files, cache)

@@ -28,7 +28,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -115,11 +117,29 @@ fun SettingsScreen(
             NavigationRow(stringResource(R.string.settings_reader), null) {
                 onNavigate(app.folio.ui.nav.Routes.READER_SETTINGS)
             }
+            NavigationRow(stringResource(R.string.settings_night_light), null) {
+                onNavigate(app.folio.ui.nav.Routes.NIGHT_LIGHT)
+            }
             NavigationRow(stringResource(R.string.settings_library), null) {
                 onNavigate(app.folio.ui.nav.Routes.LIBRARY_SETTINGS)
             }
             NavigationRow(stringResource(R.string.settings_pomodoro), null) {
                 onNavigate(app.folio.ui.nav.Routes.POMODORO_SETTINGS)
+            }
+            NavigationRow(stringResource(R.string.settings_manga), null) {
+                onNavigate(app.folio.ui.nav.Routes.MANGA_SETTINGS)
+            }
+            NavigationRow(stringResource(R.string.manga_extensions), null) {
+                onNavigate(app.folio.ui.nav.Routes.mangaExtensions(0))
+            }
+            NavigationRow(stringResource(R.string.manga_find_online), null) {
+                onNavigate(app.folio.ui.nav.Routes.MANGA_BROWSE)
+            }
+            NavigationRow(stringResource(R.string.manga_downloads), null) {
+                onNavigate(app.folio.ui.nav.Routes.MANGA_DOWNLOADS)
+            }
+            NavigationRow(stringResource(R.string.web_from_the_web), null) {
+                onNavigate(app.folio.ui.nav.Routes.web())
             }
             NavigationRow(stringResource(R.string.settings_notifications), null) {
                 onNavigate(app.folio.ui.nav.Routes.NOTIFICATIONS)
@@ -392,6 +412,15 @@ fun ReaderDefaultsScreen(
         }
         SwitchRow(stringResource(R.string.reader_focus_mode), settings.behavior.focusModeByDefault) { checked ->
             viewModel.update { it.copy(behavior = it.behavior.copy(focusModeByDefault = checked)) }
+        }
+        SwitchRow(stringResource(R.string.setting_reading_ruler), settings.behavior.readingRuler) { checked ->
+            viewModel.update { it.copy(behavior = it.behavior.copy(readingRuler = checked)) }
+        }
+        SwitchRow(stringResource(R.string.setting_page_turn_sound), settings.behavior.pageTurnSound) { checked ->
+            viewModel.update { it.copy(behavior = it.behavior.copy(pageTurnSound = checked)) }
+        }
+        SwitchRow(stringResource(R.string.setting_page_turn_haptic), settings.behavior.pageTurnHaptic) { checked ->
+            viewModel.update { it.copy(behavior = it.behavior.copy(pageTurnHaptic = checked)) }
         }
         SwitchRow(stringResource(R.string.setting_zoom_lock_button), settings.behavior.zoomLockButton) { checked ->
             viewModel.update { it.copy(behavior = it.behavior.copy(zoomLockButton = checked)) }
@@ -704,6 +733,29 @@ fun PrivacyScreen(
         SwitchRow(stringResource(R.string.settings_hide_recents), privacy.hideInRecents) { checked ->
             viewModel.update { it.copy(privacy = it.privacy.copy(hideInRecents = checked)) }
         }
+
+        Spacer(Modifier.height(16.dp))
+        Text(stringResource(R.string.settings_browsing), style = MaterialTheme.typography.titleSmall)
+        SwitchRow(stringResource(R.string.settings_incognito_keyboard), privacy.incognitoKeyboard) { checked ->
+            viewModel.update { it.copy(privacy = it.privacy.copy(incognitoKeyboard = checked)) }
+        }
+        SwitchRow(stringResource(R.string.settings_forget_browsing), privacy.forgetBrowsing) { checked ->
+            viewModel.update { it.copy(privacy = it.privacy.copy(forgetBrowsing = checked)) }
+        }
+        var clearing by remember { mutableStateOf(false) }
+        var signOutToo by remember { mutableStateOf(false) }
+        androidx.compose.material3.Row(verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.Checkbox(checked = signOutToo, onCheckedChange = { signOutToo = it })
+            Text(stringResource(R.string.settings_sign_out_sites))
+        }
+        TextButton(onClick = { clearing = true }) { Text(stringResource(R.string.settings_clear_browsing_now)) }
+        if (clearing) {
+            val container = app.folio.ui.LocalContainer.current
+            androidx.compose.runtime.LaunchedEffect(Unit) {
+                app.folio.data.privacy.BrowsingData(container.appContext, container).forget(signOutToo)
+                clearing = false
+            }
+        }
     }
 
     pinEntry?.let { value ->
@@ -731,6 +783,79 @@ fun PrivacyScreen(
             },
             onDismiss = { confirmEntry = null },
         )
+    }
+}
+
+@Composable
+fun NightLightScreen(
+    onBack: () -> Unit,
+    viewModel: SettingsViewModel = folioViewModel { SettingsViewModel(it) },
+) {
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val nightLight = settings.nightLight
+
+    fun update(transform: (app.folio.data.settings.NightLightSettings) -> app.folio.data.settings.NightLightSettings) {
+        viewModel.update { it.copy(nightLight = transform(it.nightLight)) }
+    }
+
+    SettingsScaffold("Night light", onBack) {
+        app.folio.data.settings.NightLightMode.entries.forEach { mode ->
+            androidx.compose.material3.Row(verticalAlignment = Alignment.CenterVertically) {
+                androidx.compose.material3.RadioButton(
+                    selected = nightLight.mode == mode,
+                    onClick = { update { it.copy(mode = mode) } },
+                )
+                Text(mode.name.lowercase().replaceFirstChar(Char::uppercase))
+            }
+        }
+        if (nightLight.mode != app.folio.data.settings.NightLightMode.OFF) {
+            SliderRow(
+                label = "Warmth",
+                value = nightLight.warmth,
+                range = 0f..1f,
+                display = "${(nightLight.warmth * 100).toInt()}%",
+            ) { v -> update { s -> s.copy(warmth = v) } }
+            SliderRow(
+                label = "Dim",
+                value = nightLight.dim,
+                range = 0f..1f,
+                display = "${(nightLight.dim * 100).toInt()}%",
+            ) { v -> update { s -> s.copy(dim = v) } }
+        }
+        if (nightLight.mode == app.folio.data.settings.NightLightMode.SCHEDULED) {
+            MinutesOfDayRow("Start", nightLight.startMinutes) { update { s -> s.copy(startMinutes = it) } }
+            MinutesOfDayRow("End", nightLight.endMinutes) { update { s -> s.copy(endMinutes = it) } }
+        }
+        Spacer(Modifier.height(16.dp))
+        Text("Bedtime", style = MaterialTheme.typography.titleSmall)
+        SwitchRow("Remind me at bedtime", nightLight.bedtimeReminder) { checked ->
+            update { it.copy(bedtimeReminder = checked) }
+        }
+        if (nightLight.bedtimeReminder) {
+            MinutesOfDayRow("Bedtime", nightLight.bedtimeMinutes) { update { s -> s.copy(bedtimeMinutes = it) } }
+        }
+    }
+}
+
+@Composable
+private fun MinutesOfDayRow(label: String, minutes: Int, onChange: (Int) -> Unit) {
+    val hour = minutes / 60
+    val minute = minutes % 60
+    androidx.compose.material3.Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(label)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = { onChange(((minutes - 15) + 1440) % 1440) }) {
+                Icon(Icons.Rounded.Remove, contentDescription = "Earlier")
+            }
+            Text("%02d:%02d".format(hour, minute))
+            IconButton(onClick = { onChange((minutes + 15) % 1440) }) {
+                Icon(Icons.Rounded.Add, contentDescription = "Later")
+            }
+        }
     }
 }
 

@@ -68,16 +68,32 @@ class MainActivity : AppCompatActivity() {
                 applySecureFlag(settings.privacy.hideInRecents)
             }
 
+            var bedtimeDismissedUntil by androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(0L) }
+
             CompositionLocalProvider(LocalContainer provides container) {
                 FolioAppTheme(settings) {
                     Surface(Modifier.fillMaxSize()) {
-                        FolioRoot(
-                            settings = settings,
-                            locked = isLocked && settings.privacy.lockEnabled,
-                            onUnlocked = { locked.value = false },
-                            openBookId = openBook,
-                            onOpenHandled = { openBookRequest.value = null },
-                        )
+                        app.folio.ui.components.IncognitoKeyboard(settings.privacy.incognitoKeyboard) {
+                            app.folio.ui.components.NightLightOverlay(
+                                settings = settings.nightLight,
+                                reduceMotion = settings.accessibility.reduceMotion,
+                            ) {
+                                app.folio.ui.components.BedtimeNudge(
+                                    settings = settings.nightLight,
+                                    dismissedUntil = bedtimeDismissedUntil,
+                                    onSnooze = { bedtimeDismissedUntil = it },
+                                    onGoodNight = { bedtimeDismissedUntil = it },
+                                ) {
+                                    FolioRoot(
+                                        settings = settings,
+                                        locked = isLocked && settings.privacy.lockEnabled,
+                                        onUnlocked = { locked.value = false },
+                                        openBookId = openBook,
+                                        onOpenHandled = { openBookRequest.value = null },
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -93,6 +109,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         backgroundedAt = System.currentTimeMillis()
+        app.folio.widget.ContinueReadingWidget.refreshAll(this)
     }
 
     override fun onStart() {
@@ -121,6 +138,11 @@ class MainActivity : AppCompatActivity() {
     /** Files arriving from "Open with" or a share are copied in, since the grant is temporary. */
     private fun handleIntent(intent: Intent?) {
         when (intent?.action) {
+            app.folio.widget.ACTION_OPEN_BOOK -> {
+                val bookId = intent.getLongExtra(app.folio.widget.EXTRA_BOOK_ID, -1)
+                if (bookId > 0) openBookRequest.value = bookId
+            }
+
             Intent.ACTION_VIEW -> intent.data?.let { uri ->
                 awaitingOpen = true
                 container.imports.enqueue(listOf(uri.toString()), forceCopy = true)
@@ -133,9 +155,13 @@ class MainActivity : AppCompatActivity() {
                     @Suppress("DEPRECATION")
                     intent.getParcelableExtra<android.net.Uri>(Intent.EXTRA_STREAM)
                 }
-                uri?.let {
+                if (uri != null) {
                     awaitingOpen = true
-                    container.imports.enqueue(listOf(it.toString()), forceCopy = true)
+                    container.imports.enqueue(listOf(uri.toString()), forceCopy = true)
+                } else {
+                    val text = intent.getStringExtra(Intent.EXTRA_TEXT)
+                    val url = text?.let { Regex("""https?://\S+""").find(it)?.value }
+                    if (url != null) container.pendingWebUrl.value = url
                 }
             }
 

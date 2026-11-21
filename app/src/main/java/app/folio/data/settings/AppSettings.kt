@@ -25,6 +25,63 @@ enum class HomeSection { CONTINUE_READING, READING_GOAL, STREAK, RECENTLY_ADDED,
 /** Bookshelf shows collections as shelves; Classic is the original list of home sections. */
 enum class HomeStyle { BOOKSHELF, CLASSIC }
 
+enum class NightLightMode { OFF, ALWAYS, SCHEDULED }
+
+@Serializable
+data class NightLightSettings(
+    val mode: NightLightMode = NightLightMode.OFF,
+    val warmth: Float = 0.5f,
+    val dim: Float = 0f,
+    val startMinutes: Int = 21 * 60,
+    val endMinutes: Int = 7 * 60,
+    val bedtimeReminder: Boolean = false,
+    val bedtimeMinutes: Int = 23 * 60,
+)
+
+@Serializable
+data class MangaSettings(
+    /** Master switch. Nothing manga-related connects to the network while this is off. */
+    val sourcesEnabled: Boolean = false,
+    val allowAdultSources: Boolean = false,
+    /** Blank means NetworkHelper.DEFAULT_USER_AGENT. */
+    val userAgent: String = "",
+    val downloadOverWifiOnly: Boolean = true,
+    val parallelPageDownloads: Int = 2,
+    val saveChaptersAsCbz: Boolean = true,
+    val writeComicInfo: Boolean = true,
+    val downloadAheadChapters: Int = 0,
+    val deleteChapterAfterRead: Boolean = false,
+    val globalSearchExcludedSources: Set<Long> = emptySet(),
+    /** Stored as hidden, not shown, so a newly added language appears without a migration. */
+    val hiddenLanguages: Set<String> = emptySet(),
+    val disabledExtensions: Set<String> = emptySet(),
+    val lockExtensions: Boolean = true,
+)
+
+@Serializable
+data class SavedFeed(
+    val url: String,
+    val title: String,
+    val siteUrl: String? = null,
+)
+
+@Serializable
+data class WebNovel(
+    val bookId: Long,
+    val title: String,
+    val lastUrl: String,
+    val nextUrl: String? = null,
+    val chapters: Int = 0,
+    val checkedAt: Long = 0,
+)
+
+@Serializable
+data class WebSettings(
+    val enabled: Boolean = false,
+    val feeds: List<SavedFeed> = emptyList(),
+    val novels: List<WebNovel> = emptyList(),
+)
+
 @Serializable
 data class AppearanceSettings(
     val themeId: String = "paper",
@@ -101,6 +158,9 @@ data class ReaderBehaviorSettings(
     val screenBrightness: Float? = null,
     val zoomLockButton: Boolean = true,
     val zoomLockAlwaysVisible: Boolean = false,
+    val readingRuler: Boolean = false,
+    val pageTurnSound: Boolean = false,
+    val pageTurnHaptic: Boolean = false,
 )
 
 @Serializable
@@ -133,6 +193,8 @@ data class PrivacySettings(
     val biometricEnabled: Boolean = false,
     val lockTimeoutSeconds: Int = 30,
     val hideInRecents: Boolean = false,
+    val incognitoKeyboard: Boolean = true,
+    val forgetBrowsing: Boolean = true,
 ) {
     val lockEnabled: Boolean get() = pinHash != null
 }
@@ -147,7 +209,12 @@ data class AccessibilitySettings(
 
 @Serializable
 data class HomeSettings(
-    val sections: List<HomeSection> = HomeSection.entries.toList(),
+    val sections: List<HomeSection> = listOf(
+        HomeSection.CONTINUE_READING,
+        HomeSection.READING_GOAL,
+        HomeSection.STREAK,
+        HomeSection.RECENTLY_ADDED,
+    ),
     val greeting: Boolean = true,
     val style: HomeStyle = HomeStyle.BOOKSHELF,
 )
@@ -192,4 +259,7 @@ data class AppSettings(
     val storage: StorageSettings = StorageSettings(),
     val scribble: ScribbleSettings = ScribbleSettings(),
     val onboardingDone: Boolean = false,
+    val nightLight: NightLightSettings = NightLightSettings(),
+    val manga: MangaSettings = MangaSettings(),
+    val web: WebSettings = WebSettings(),
 )

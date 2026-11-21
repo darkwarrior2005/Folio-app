@@ -34,11 +34,12 @@ class TextMetadataExtractor(private val files: FileAccess) : MetadataExtractor {
         val document = TextDocument.load(files, source).getOrElse { return Result.failure(it) }
         val title = document.title?.trim()?.takeIf { it.isNotBlank() && it.length <= 120 }
             ?: MetadataResolver.titleFromFileName(source.fileName)
+        val cover = document.cover?.let { app.folio.reader.comic.ComicSources.decode(it, 600) }
         return Result.success(
             ExtractedMetadata(
                 metadata = BookMetadata(title = title, author = document.author),
                 pageCount = document.blocks.size,
-                cover = null,
+                cover = cover,
             ),
         )
     }

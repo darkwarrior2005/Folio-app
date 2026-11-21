@@ -1,0 +1,14 @@
+Folio bundles code derived from other open-source projects.
+
+Mihon / Tachiyomi (https://github.com/mihonapp/mihon, https://github.com/tachiyomiorg/tachiyomi)
+--------------------------------------------------------------------------------------------------
+Licensed under the Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+
+The manga extension source API (app/src/main/java/eu/kanade/tachiyomi/), the chapter
+recognition/sanitizer logic, and the Cloudflare interceptor are adapted from Mihon/Tachiyomi so
+that Folio can load the same extension APKs. The package names under eu.kanade.tachiyomi are kept
+unchanged on purpose: extensions are compiled against those exact class names.
+
+Image decoder (ca.mpreg:imagedecoder)
+--------------------------------------
+Licensed under the MIT License. Used for AVIF, JPEG XL and HEIF page decoding.

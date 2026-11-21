@@ -18,8 +18,10 @@ Folio exists to be the opposite:
 - **One app for everything you read** — novels (EPUB), papers and documents (PDF), manga and comics
   (CBZ/CBR/image folders) and notes (TXT/Markdown/HTML) share one library, one search and one set of
   annotations.
-- **Private by construction** — no account, no cloud, no analytics, no ads. The Internet permission
-  is removed from the app, so Android itself blocks any network access.
+- **Offline by default** — no account, no cloud, no analytics, no ads. Folio's book library never
+  touches the network. The only two features that do - manga sources (extensions) and From the web
+  (saved pages, feeds, web novels) - are each off until you turn them on in Settings, and every
+  network call in both checks that setting first.
 - **Built for focus** — a distraction-free reader, a Pomodoro timer, reading goals and streaks, and
   a per-book soundtrack help you actually sit down and read.
 - **Your data stays yours** — everything can be backed up to a single ZIP file and restored on another
@@ -39,8 +41,13 @@ Folio exists to be the opposite:
 | ⏱️ **Pomodoro** | Focus timer that survives the app being killed, with recorded sessions |
 | 📊 **Statistics** | Reading sessions, streaks, goals and per-book stats |
 | 🎨 **Themes** | 17 themes, custom accent colour, bundled reading fonts |
-| 🔒 **Privacy** | No Internet, optional PIN/biometric lock, hide from recent apps |
+| 🔒 **Privacy** | Offline by default, optional PIN/biometric lock, hide from recent apps, incognito keyboard, forget browsing on each start |
 | 💾 **Backup** | ZIP backup and restore, optionally including the book files |
+| 🗜️ **More formats** | MOBI, AZW3, FB2, DOCX, ODT, RTF — converted to the text reader on import |
+| 🈂️ **Manga** | Load the same extensions Mihon/Tachiyomi use, browse and search sources, download chapters for offline reading, and bypass a Cloudflare check automatically or with one tap ("Open the site") |
+| 🌐 **From the web** | Save a page, follow an RSS/Atom feed, or read a web novel chapter by chapter — all turned into ordinary offline books |
+| 🌙 **Night light** | A scheduled warm/dim screen tint, with a gentle bedtime reminder |
+| 📖 **Reading comfort** | A reading ruler, page-turn sound/haptics, dictionary look-up, and shareable quote cards |
 
 ## Requirements
 
@@ -50,19 +57,22 @@ Folio exists to be the opposite:
   (the app targets Android API 36).
 - Enough free storage for your books, music and covers. Books are opened in place through Android's
   file picker, so they are not copied unless you choose to include them in a backup.
-- **No Internet connection and no account** are needed — ever.
+- **No account, ever.** An Internet connection is only needed if you turn on manga sources or
+  From the web; the rest of the app works fully offline.
 
 ### Permissions it asks for
 
 | Permission | Why |
 | --- | --- |
-| Notifications | Pomodoro timer, reading reminders and music playback controls |
-| Foreground service (special use, media playback) | Keeps the timer and the music running when the app is in the background |
-| Wake lock, vibrate | Timer alerts and uninterrupted playback |
-| Biometric | Optional fingerprint/face unlock for the app lock |
+| Notifications | Pomodoro timer, reading reminders, music playback controls, chapter downloads |
+| Foreground service (special use, media playback) | Keeps the timer, music and chapter downloads running when the app is in the background |
+| Wake lock, vibrate | Timer alerts, uninterrupted playback, page-turn haptics |
+| Biometric | Optional fingerprint/face unlock for the app lock and the Extensions screen |
+| Internet, network state | Only used by manga sources and From the web, both off by default |
+| Install/uninstall packages, see installed apps | How manga extensions (ordinary APKs) are added and removed; this also means Folio can't be distributed through the Play Store |
 
 Files are accessed only through the Storage Access Framework, i.e. only the files and folders you
-pick yourself. `INTERNET` and `ACCESS_NETWORK_STATE` are explicitly **removed** from the manifest.
+pick yourself.
 
 ### To build it from source
 
@@ -195,12 +205,23 @@ force close or a dead battery cannot lose your place.
 
 - **CBR (RAR5):** junrar cannot decode RAR5 archives. RAR4 files work; RAR5 reports a clear error
   suggesting conversion to CBZ.
-- **MOBI / AZW / AZW3, DOCX, RTF:** not implemented. DRM-protected files cannot be supported.
+- **MOBI/AZW3, FB2, DOCX, ODT, RTF:** converted to HTML on import, capped at 80 MB, with embedded
+  pictures limited to 16 MB per book. DRM-protected files show a clear error instead of opening. A
+  combo MOBI+KF8 (AZW3) file is read as one PalmDOC text blob rather than cleanly separating its
+  flows, so it can occasionally mix in markup that belongs to a later flow.
+- **Manga extensions:** only Mihon/Tachiyomi-compatible extensions (extension-lib 1.4-1.6) load. A
+  repository's `index.pb` is read on a best-effort basis against the documented schema; if that
+  ever drifts, `index.min.json` is the fallback every repository also offers. Cloudflare's
+  non-interactive check is solved automatically; a captcha or a manual "verify you are human" needs
+  "Open the site" once.
+- **From the web:** pages are capped at 8 MB with at most 40 pictures (4 MB each, 12 MB total);
+  anything over that is dropped rather than left as a broken remote image.
 - **Scanned PDFs:** searching inside them needs OCR, which is not implemented, so image-only pages
   have no text to index or select.
-- **Text reader:** documents are loaded whole and capped at 12 MB; images referenced by relative
-  paths in a standalone HTML file will not resolve.
-- **Text-to-speech and dictionary lookup:** not implemented.
+- **Text reader:** plain TXT/Markdown/HTML documents are loaded whole and capped at 12 MB; images
+  referenced by relative paths in a standalone HTML file will not resolve.
+- **Text-to-speech:** not implemented. Dictionary look-up is (Look up, in the reader's selection
+  toolbar), via whatever dictionary/translation apps are installed on the device.
 - **Cloud sync:** deliberately absent.
 - **Music formats:** ALAC, APE, WMA and DSD are not supported (no FFmpeg decoder bundled). Tags are
   never written back into audio files.

@@ -16,7 +16,9 @@ import app.folio.data.settings.ImportMode
 import app.folio.data.settings.SettingsRepository
 import app.folio.reader.ReaderRegistry
 import app.folio.reader.api.BookSource
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -91,6 +93,22 @@ class ImportManager(
     private var failed = 0
     private var skipped = 0
 
+    private val ownImportWaiters = mutableMapOf<String, CompletableDeferred<Long?>>()
+
+    /**
+     * Imports [uri] as a copy Folio owns (From the web's saved pages/feed items/novel chapters),
+     * skipping the duplicate check, and resolves once that one file has gone through the queue -
+     * other callers only see it through [events] like any other import.
+     */
+    fun importOwn(uri: String): Deferred<Long?> {
+        val deferred = CompletableDeferred<Long?>()
+        ownImportWaiters[uri] = deferred
+        _progress.value = _progress.value.copy(running = true, total = _progress.value.total + 1)
+        queue.trySend(Job(uri, forceCopy = true, skipDuplicateCheck = true))
+        ensureWorker()
+        return deferred
+    }
+
     fun enqueue(uris: List<String>, forceCopy: Boolean = false) {
         if (uris.isEmpty()) return
         _progress.value = _progress.value.copy(
@@ -141,6 +159,7 @@ class ImportManager(
                     currentName = files.info(job.uri)?.name,
                 )
                 runCatching { process(job) }
+                ownImportWaiters.remove(job.uri)?.complete(null) // still pending means process() didn't reach success
                 _progress.value = _progress.value.copy(completed = _progress.value.completed + 1)
             }
             _events.emit(ImportEvent.Finished(imported, failed, skipped))
@@ -256,6 +275,7 @@ class ImportManager(
         }
 
         imported++
+        ownImportWaiters.remove(job.uri)?.complete(bookId)
         _events.emit(ImportEvent.Imported(bookId, newBook.imported.title ?: info.name))
     }
 

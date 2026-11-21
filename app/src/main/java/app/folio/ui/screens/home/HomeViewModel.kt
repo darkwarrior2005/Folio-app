@@ -22,6 +22,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -46,6 +47,25 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
 
     private val books = container.library.libraryBooks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val resumeBook: StateFlow<LibraryBook?> = books
+        .map { app.folio.core.model.ComfortPicks.resume(it) }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    private val _surpriseBook = kotlinx.coroutines.flow.MutableStateFlow<LibraryBook?>(null)
+    val surpriseBook: StateFlow<LibraryBook?> = _surpriseBook
+
+    fun surprise() {
+        viewModelScope.launch {
+            val queueIds = container.organization.queueOnce().map { it.bookId }
+            _surpriseBook.value = app.folio.core.model.ComfortPicks.surprise(books.value, queueIds, current = resumeBook.value)
+        }
+    }
+
+    fun clearSurprise() {
+        _surpriseBook.value = null
+    }
 
     val continueReading: StateFlow<List<LibraryBook>> = books
         .map { list ->
