@@ -411,5 +411,97 @@ private fun FolioNavHost(
                 onReset = { navController.navigateTop(Routes.HOME) },
             )
         }
+
+        composable(Routes.MANGA_BROWSE) {
+            app.folio.ui.screens.manga.BrowseSourcesScreen(
+                onOpenSource = { navController.navigate(Routes.mangaSource(it)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.MANGA_SOURCE,
+            arguments = listOf(navArgument(Routes.SOURCE_ID) { type = NavType.LongType }),
+        ) { entry ->
+            val sourceId = entry.arguments?.getLong(Routes.SOURCE_ID) ?: return@composable
+            app.folio.ui.screens.manga.SourceCatalogueScreen(
+                sourceId = sourceId,
+                onOpenManga = { navController.navigate(Routes.mangaDetails(it)) },
+                onNeedsWebView = { url -> navController.navigate(Routes.mangaSourceWebView(sourceId, url)) },
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(
+            route = Routes.MANGA_DETAILS,
+            arguments = listOf(navArgument(Routes.MANGA_ID) { type = NavType.LongType }),
+        ) { entry ->
+            val mangaId = entry.arguments?.getLong(Routes.MANGA_ID) ?: return@composable
+            app.folio.ui.screens.manga.MangaDetailsScreen(
+                mangaId = mangaId,
+                onBack = { navController.popBackStack() },
+                onReadChapter = { manga, chapter -> navController.navigate(Routes.mangaReader(manga, chapter)) },
+                onNeedsWebView = { sourceId, url -> navController.navigate(Routes.mangaSourceWebView(sourceId, url)) },
+            )
+        }
+        composable(
+            route = Routes.MANGA_READER,
+            arguments = listOf(
+                navArgument(Routes.MANGA_ID) { type = NavType.LongType },
+                navArgument(Routes.CHAPTER_ID) { type = NavType.LongType },
+            ),
+        ) { entry ->
+            val mangaId = entry.arguments?.getLong(Routes.MANGA_ID) ?: return@composable
+            val chapterId = entry.arguments?.getLong(Routes.CHAPTER_ID) ?: return@composable
+            app.folio.ui.screens.manga.MangaReaderScreen(
+                mangaId = mangaId,
+                chapterId = chapterId,
+                onBack = { navController.popBackStack() },
+            )
+        }
+        composable(Routes.MANGA_DOWNLOADS) {
+            app.folio.ui.screens.manga.DownloadQueueScreen(onBack = { navController.popBackStack() })
+        }
+        composable(Routes.MANGA_SETTINGS) {
+            app.folio.ui.screens.manga.MangaSettingsScreen(onBack = { navController.popBackStack() })
+        }
+        composable(
+            route = Routes.MANGA_EXTENSIONS,
+            arguments = listOf(navArgument(Routes.EXTENSIONS_TAB) { type = NavType.IntType; defaultValue = 0 }),
+        ) { entry ->
+            val tab = entry.arguments?.getInt(Routes.EXTENSIONS_TAB) ?: 0
+            app.folio.ui.screens.manga.ExtensionsScreen(
+                initialTab = tab,
+                onBack = { navController.popBackStack() },
+                onSourceSettings = { navController.navigate(Routes.mangaSourceSettings(it)) },
+            )
+        }
+        composable(
+            route = Routes.MANGA_SOURCE_SETTINGS,
+            arguments = listOf(navArgument(Routes.PACKAGE_NAME) { type = NavType.StringType }),
+        ) { entry ->
+            val packageName = entry.arguments?.getString(Routes.PACKAGE_NAME) ?: return@composable
+            app.folio.ui.screens.manga.SourceSettingsScreen(packageName, onBack = { navController.popBackStack() })
+        }
+        composable(
+            route = Routes.MANGA_SOURCE_WEBVIEW,
+            arguments = listOf(
+                navArgument(Routes.SOURCE_ID) { type = NavType.LongType },
+                navArgument(Routes.SOURCE_URL) { type = NavType.StringType; defaultValue = "" },
+            ),
+        ) { entry ->
+            val sourceId = entry.arguments?.getLong(Routes.SOURCE_ID) ?: return@composable
+            val url = entry.arguments?.getString(Routes.SOURCE_URL).orEmpty()
+            val source = container.sourceManager.get(sourceId) as? eu.kanade.tachiyomi.source.online.HttpSource
+            if (source != null) {
+                app.folio.ui.screens.manga.SourceWebViewScreen(
+                    url = if (url.isBlank()) source.baseUrl else url,
+                    userAgent = source.headers["User-Agent"] ?: "",
+                    headers = source.headers.toMap(),
+                    sourceName = source.name,
+                    onDone = { navController.popBackStack() },
+                )
+            }
+        }
     }
 }
+
+private fun okhttp3.Headers.toMap(): Map<String, String> = names().associateWith { get(it).orEmpty() }

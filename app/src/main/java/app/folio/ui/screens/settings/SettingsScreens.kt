@@ -121,6 +121,18 @@ fun SettingsScreen(
             NavigationRow(stringResource(R.string.settings_pomodoro), null) {
                 onNavigate(app.folio.ui.nav.Routes.POMODORO_SETTINGS)
             }
+            NavigationRow(stringResource(R.string.settings_manga), null) {
+                onNavigate(app.folio.ui.nav.Routes.MANGA_SETTINGS)
+            }
+            NavigationRow(stringResource(R.string.manga_extensions), null) {
+                onNavigate(app.folio.ui.nav.Routes.mangaExtensions(0))
+            }
+            NavigationRow(stringResource(R.string.manga_find_online), null) {
+                onNavigate(app.folio.ui.nav.Routes.MANGA_BROWSE)
+            }
+            NavigationRow(stringResource(R.string.manga_downloads), null) {
+                onNavigate(app.folio.ui.nav.Routes.MANGA_DOWNLOADS)
+            }
             NavigationRow(stringResource(R.string.settings_notifications), null) {
                 onNavigate(app.folio.ui.nav.Routes.NOTIFICATIONS)
             }

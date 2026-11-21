@@ -291,6 +291,10 @@
     <string name="settings_data">Backup and data</string>
     <string name="settings_notifications">Notifications</string>
     <string name="settings_about">About</string>
+    <string name="settings_manga">Manga sources</string>
+    <string name="manga_find_online">Find manga online</string>
+    <string name="manga_extensions">Extensions</string>
+    <string name="manga_downloads">Downloads</string>
     <string name="settings_show_progress">Show progress</string>
     <string name="settings_show_tags">Show tags</string>
     <string name="settings_show_file_type">Show file type</string>

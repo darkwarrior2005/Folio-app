@@ -28,7 +28,7 @@ import kotlinx.coroutines.SupervisorJob
  */
 class AppContainer(context: Context) {
 
-    private val appContext = context.applicationContext
+    val appContext = context.applicationContext
 
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
