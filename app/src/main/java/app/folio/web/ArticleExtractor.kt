@@ -21,8 +21,10 @@ object ArticleExtractor {
 
     private val UNWANTED_SELECTOR = "script, style, nav, footer, aside, form, noscript, iframe, " +
         "[hidden], [aria-hidden=true], [style*=display:none], [style*=display: none]"
+    // Whole words of a class or id only: a bare "ad" would also match "read", "header", ...
     private val UNWANTED_CLASS_ID = Regex(
-        "comment|share|social|related|sidebar|ad|advert|promo|cookie|subscribe|newsletter|popup|banner|breadcrumb",
+        "(?:^|[\\s_-])(?:comments?|share|sharing|social|related|sidebar|ads?|advert\\w*|promo\\w*|" +
+            "cookies?|subscribe|newsletter|popup|banner|breadcrumbs?)(?:$|[\\s_-])",
         RegexOption.IGNORE_CASE,
     )
 
@@ -33,6 +35,8 @@ object ArticleExtractor {
 
     fun extract(html: String, baseUrl: String): ExtractedArticle {
         val document = Jsoup.parse(html, baseUrl)
+        // Found on the untouched page: pruning below would often remove the pager it lives in.
+        val nextUrl = nextLink(document, baseUrl)
         document.select(UNWANTED_SELECTOR).remove()
         removeNoise(document)
 
@@ -51,7 +55,7 @@ object ArticleExtractor {
             }
         }
         scores.keys.forEach { element ->
-            scores[element] = (scores[element] ?: 0.0) / linkDensity(element).coerceAtLeast(0.15)
+            scores[element] = (scores[element] ?: 0.0) * nonLinkTextShare(element)
         }
         document.select("article, main, [role=main]").forEach { element ->
             scores[element] = (scores[element] ?: 0.0) + 25.0
@@ -63,7 +67,6 @@ object ArticleExtractor {
 
         val title = document.title().ifBlank { null }
         val author = document.select("meta[name=author]").attr("content").ifBlank { null }
-        val nextUrl = nextLink(document, baseUrl)
 
         return ExtractedArticle(title, author, flattenToParagraphs(best), nextUrl)
     }
@@ -85,7 +88,8 @@ object ArticleExtractor {
         return weight
     }
 
-    private fun linkDensity(element: Element): Double {
+    /** The share of an element's text that isn't link text (0.05..1): navigation scores low. */
+    private fun nonLinkTextShare(element: Element): Double {
         val text = element.text()
         if (text.isEmpty()) return 1.0
         val linkText = element.select("a").joinToString(" ") { it.text() }
