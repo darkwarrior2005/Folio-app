@@ -35,14 +35,21 @@ import androidx.room.RoomDatabase
         InkStrokeEntity::class,
         CollectionMusicEntity::class,
         CollectionMusicSourceEntity::class,
+        MangaEntity::class,
+        MangaChapterEntity::class,
+        MangaDownloadEntity::class,
+        ExtensionRepoEntity::class,
+        TrustedExtensionEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
         // Collection soundtracks: two new tables, nothing existing changes.
         AutoMigration(from = 3, to = 4),
+        // Manga library, extension repositories and trust: five new tables, nothing existing changes.
+        AutoMigration(from = 4, to = 5),
     ],
 )
 abstract class FolioDatabase : RoomDatabase() {
@@ -55,6 +62,7 @@ abstract class FolioDatabase : RoomDatabase() {
     abstract fun search(): SearchDao
     abstract fun music(): MusicDao
     abstract fun ink(): InkDao
+    abstract fun manga(): MangaDao
 
     companion object {
         const val NAME = "folio.db"

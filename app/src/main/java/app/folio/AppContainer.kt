@@ -43,6 +43,7 @@ class AppContainer(context: Context) {
     val ink: app.folio.data.repo.InkRepository by lazy { app.folio.data.repo.InkRepository(database) }
     val reading: ReadingRepository by lazy { ReadingRepository(database) }
     val search: SearchRepository by lazy { SearchRepository(database) }
+    val manga: app.folio.data.repo.MangaRepository by lazy { app.folio.data.repo.MangaRepository(database) }
 
     val music: app.folio.data.repo.MusicRepository by lazy {
         app.folio.data.repo.MusicRepository(database, files, cache)
