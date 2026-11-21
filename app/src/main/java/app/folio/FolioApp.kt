@@ -16,6 +16,7 @@ class FolioApp : Application() {
             app.folio.manga.MangaSourceModule(this, container.settings),
         )
         container.bookMusic.start()
+        app.folio.manga.download.DownloadWorker.resumeIfNeeded(this)
 
         container.appScope.launch {
             // Files move and disappear outside the app; find out before the user taps one.

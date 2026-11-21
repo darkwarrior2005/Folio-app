@@ -50,6 +50,19 @@ class AppContainer(context: Context) {
         app.folio.manga.extension.ExtensionManager(appContext, database.manga(), settings, sourceManager)
     }
 
+    val downloadProvider: app.folio.manga.download.DownloadProvider by lazy {
+        app.folio.manga.download.DownloadProvider(appContext)
+    }
+    val downloadManager: app.folio.manga.download.DownloadManager by lazy {
+        app.folio.manga.download.DownloadManager(downloadProvider, database.manga())
+    }
+    val downloader: app.folio.manga.download.Downloader by lazy {
+        app.folio.manga.download.Downloader(downloadProvider, settings, appScope)
+    }
+    val mangaChapterLoader: app.folio.manga.download.MangaChapterLoader by lazy {
+        app.folio.manga.download.MangaChapterLoader(downloadProvider, files)
+    }
+
     val music: app.folio.data.repo.MusicRepository by lazy {
         app.folio.data.repo.MusicRepository(database, files, cache)
     }
