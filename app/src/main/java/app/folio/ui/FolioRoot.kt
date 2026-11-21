@@ -194,12 +194,14 @@ private fun FolioNavHost(
                 var selected by remember { mutableStateOf<Long?>(null) }
                 Row(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(0.42f)) {
-                        LibraryScreen(
+                        app.folio.ui.screens.library.LibraryWithMangaTabs(
                             onOpenBook = { navController.navigate(Routes.reader(it)) },
                             onBookDetails = { selected = it },
                             onSearch = { navController.navigate(Routes.SEARCH) },
-                    onMusic = { navController.navigate(Routes.MUSIC) },
+                            onMusic = { navController.navigate(Routes.MUSIC) },
                             onCollections = { navController.navigate(Routes.COLLECTIONS) },
+                            onOpenManga = { navController.navigate(Routes.mangaDetails(it)) },
+                            onFindMangaOnline = { navController.navigate(Routes.MANGA_BROWSE) },
                         )
                     }
                     Box(Modifier.weight(0.58f)) {
@@ -217,12 +219,14 @@ private fun FolioNavHost(
                     }
                 }
             } else {
-                LibraryScreen(
+                app.folio.ui.screens.library.LibraryWithMangaTabs(
                     onOpenBook = { navController.navigate(Routes.reader(it)) },
                     onBookDetails = { navController.navigate(Routes.bookDetails(it)) },
                     onSearch = { navController.navigate(Routes.SEARCH) },
                     onMusic = { navController.navigate(Routes.MUSIC) },
                     onCollections = { navController.navigate(Routes.COLLECTIONS) },
+                    onOpenManga = { navController.navigate(Routes.mangaDetails(it)) },
+                    onFindMangaOnline = { navController.navigate(Routes.MANGA_BROWSE) },
                 )
             }
         }
