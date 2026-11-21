@@ -24,7 +24,7 @@ abstract class Filter<T>(val name: String, var state: T) {
         }
     }
 
-    abstract class Group<V>(name: String, val state: List<V>) : Filter<List<V>>(name, state)
+    abstract class Group<V>(name: String, override var state: List<V>) : Filter<List<V>>(name, state)
 
     abstract class Sort(
         name: String,

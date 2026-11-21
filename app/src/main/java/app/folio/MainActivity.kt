@@ -68,7 +68,7 @@ class MainActivity : AppCompatActivity() {
                 applySecureFlag(settings.privacy.hideInRecents)
             }
 
-            var bedtimeDismissedUntil by androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(0L) }
+            val bedtimeDismissedUntil = androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(0L) }
 
             CompositionLocalProvider(LocalContainer provides container) {
                 FolioAppTheme(settings) {
@@ -80,8 +80,8 @@ class MainActivity : AppCompatActivity() {
                             ) {
                                 app.folio.ui.components.BedtimeNudge(
                                     settings = settings.nightLight,
-                                    dismissedUntil = bedtimeDismissedUntil,
-                                    onSnooze = { bedtimeDismissedUntil = it },
+                                    dismissedUntil = bedtimeDismissedUntil.longValue,
+                                    onSnooze = { bedtimeDismissedUntil.longValue = it },
                                     onGoodNight = { bedtimeDismissedUntil = it },
                                 ) {
                                     FolioRoot(
