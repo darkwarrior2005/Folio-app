@@ -849,11 +849,11 @@ private fun MinutesOfDayRow(label: String, minutes: Int, onChange: (Int) -> Unit
         Text(label)
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { onChange(((minutes - 15) + 1440) % 1440) }) {
-                Icon(Icons.Filled.Remove, contentDescription = "Earlier")
+                Icon(Icons.Rounded.Remove, contentDescription = "Earlier")
             }
             Text("%02d:%02d".format(hour, minute))
             IconButton(onClick = { onChange((minutes + 15) % 1440) }) {
-                Icon(Icons.Filled.Add, contentDescription = "Later")
+                Icon(Icons.Rounded.Add, contentDescription = "Later")
             }
         }
     }

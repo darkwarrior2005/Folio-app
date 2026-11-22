@@ -39,7 +39,7 @@ fun DownloadQueueScreen(onBack: () -> Unit) {
                     },
                     trailingContent = {
                         IconButton(onClick = { container.downloader.cancel(item.chapter.id) }) {
-                            androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Close, contentDescription = "Cancel")
+                            androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = "Cancel")
                         }
                     },
                 )

@@ -60,15 +60,15 @@ fun MangaDetailsScreen(
                     IconButton(onClick = { viewModel.toggleFavorite() }) {
                         Icon(
                             if (state.manga?.favorite == true) {
-                                androidx.compose.material.icons.Icons.Filled.Favorite
+                                androidx.compose.material.icons.Icons.Rounded.Favorite
                             } else {
-                                androidx.compose.material.icons.Icons.Filled.FavoriteBorder
+                                androidx.compose.material.icons.Icons.Rounded.FavoriteBorder
                             },
                             contentDescription = "In library",
                         )
                     }
                     IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(androidx.compose.material.icons.Icons.Filled.Refresh, contentDescription = "Refresh")
+                        Icon(androidx.compose.material.icons.Icons.Rounded.Refresh, contentDescription = "Refresh")
                     }
                 },
             )
@@ -133,7 +133,7 @@ private fun ChapterRow(
         },
         trailingContent = {
             if (chapter.bookmark) {
-                Icon(androidx.compose.material.icons.Icons.Filled.Bookmark, contentDescription = "Bookmarked")
+                Icon(androidx.compose.material.icons.Icons.Rounded.Bookmark, contentDescription = "Bookmarked")
             }
         },
         modifier = Modifier

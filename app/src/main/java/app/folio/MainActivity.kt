@@ -9,7 +9,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
@@ -83,7 +82,7 @@ class MainActivity : AppCompatActivity() {
                                     settings = settings.nightLight,
                                     dismissedUntil = bedtimeDismissedUntil.longValue,
                                     onSnooze = { bedtimeDismissedUntil.longValue = it },
-                                    onGoodNight = { bedtimeDismissedUntil = it },
+                                    onGoodNight = { bedtimeDismissedUntil.longValue = it },
                                 ) {
                                     FolioRoot(
                                         settings = settings,
