@@ -104,11 +104,12 @@ fun FolioRoot(
         }
     }
 
-    val pendingWebUrl by LocalContainer.current.pendingWebUrl.collectAsStateWithLifecycle()
+    val rootContainer = LocalContainer.current
+    val pendingWebUrl by rootContainer.pendingWebUrl.collectAsStateWithLifecycle()
     LaunchedEffect(pendingWebUrl) {
         pendingWebUrl?.let { url ->
             navController.navigate(Routes.web(url))
-            LocalContainer.current.pendingWebUrl.value = null
+            rootContainer.pendingWebUrl.value = null
         }
     }
 

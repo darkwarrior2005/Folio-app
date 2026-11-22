@@ -1,5 +1,7 @@
 package app.folio.ui.screens.manga
 
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
