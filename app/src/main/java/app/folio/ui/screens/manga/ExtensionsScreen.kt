@@ -39,7 +39,7 @@ fun ExtensionsScreen(initialTab: Int, onBack: () -> Unit, onSourceSettings: (Str
     val lockState = rememberDeviceAuth()
     var tab by remember { mutableIntStateOf(initialTab) }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Extensions") }) }) { padding ->
+    Scaffold(topBar = { app.folio.ui.components.BackTopBar("Extensions", onBack) }) { padding ->
         DeviceLockGate(lockState, onCancelled = onBack) {
             androidx.compose.foundation.layout.Column(Modifier.fillMaxSize().padding(padding)) {
                 TabRow(selectedTabIndex = tab) {

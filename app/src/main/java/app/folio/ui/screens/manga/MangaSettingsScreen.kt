@@ -1,5 +1,6 @@
 package app.folio.ui.screens.manga
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.foundation.layout.Arrangement
@@ -36,8 +37,8 @@ fun MangaSettingsScreen(onBack: () -> Unit) {
         scope.launch { container.settings.update { it.copy(manga = transform(it.manga)) } }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Manga sources") }) }) { padding ->
-        Column(Modifier.fillMaxSize()) {
+    Scaffold(topBar = { app.folio.ui.components.BackTopBar("Manga sources", onBack) }) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
             SwitchRow("Manga sources", manga.sourcesEnabled) { update { m -> m.copy(sourcesEnabled = it) } }
             SwitchRow("Download over Wi-Fi only", manga.downloadOverWifiOnly) { update { m -> m.copy(downloadOverWifiOnly = it) } }
             StepperRow(

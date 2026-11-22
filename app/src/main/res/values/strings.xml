@@ -297,6 +297,8 @@
     <string name="manga_find_online">Find manga online</string>
     <string name="manga_extensions">Extensions</string>
     <string name="manga_downloads">Downloads</string>
+    <string name="library_tab_books">Books</string>
+    <string name="library_tab_manga">Manga</string>
     <string name="widget_no_book">Nothing in progress</string>
     <string name="action_look_up">Look up</string>
     <string name="action_quote_card">Quote card</string>

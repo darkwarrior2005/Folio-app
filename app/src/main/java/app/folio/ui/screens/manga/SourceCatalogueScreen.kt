@@ -50,13 +50,22 @@ fun SourceCatalogueScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            app.folio.ui.components.BackTopBar(
+                onBack = onBack,
                 title = {
                     TextField(
                         value = query,
                         onValueChange = { query = it },
                         placeholder = { Text("Search this source") },
                         singleLine = true,
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                        ),
+                        keyboardActions = androidx.compose.foundation.text.KeyboardActions(
+                            onSearch = {
+                                if (query.isBlank()) viewModel.switchMode(CatalogueMode.POPULAR) else viewModel.search(query.trim())
+                            },
+                        ),
                     )
                 },
             )

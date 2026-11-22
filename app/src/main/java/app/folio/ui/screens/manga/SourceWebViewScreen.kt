@@ -37,7 +37,7 @@ fun SourceWebViewScreen(
 ) {
     var title by remember { mutableStateOf(sourceName) }
 
-    Scaffold(topBar = { TopAppBar(title = { Text(title) }) }) { padding ->
+    Scaffold(topBar = { app.folio.ui.components.BackTopBar(title, onDone) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             AndroidView(
                 modifier = Modifier.fillMaxWidth().weight(1f),

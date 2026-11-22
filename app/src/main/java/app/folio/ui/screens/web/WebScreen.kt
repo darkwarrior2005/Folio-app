@@ -48,7 +48,7 @@ fun WebScreen(initialUrl: String?, onBack: () -> Unit, onOpenBook: (Long) -> Uni
         }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("From the web") }) }) { padding ->
+    Scaffold(topBar = { app.folio.ui.components.BackTopBar("From the web", onBack) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             Row(Modifier.fillMaxWidth().padding(16.dp)) {
                 Text("From the web", modifier = Modifier.weight(1f))

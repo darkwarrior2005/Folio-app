@@ -53,8 +53,9 @@ fun MangaDetailsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(state.manga?.title ?: "") },
+            app.folio.ui.components.BackTopBar(
+                title = { Text(state.manga?.title ?: "", maxLines = 1) },
+                onBack = onBack,
                 actions = {
                     IconButton(onClick = { viewModel.toggleFavorite() }) {
                         Icon(

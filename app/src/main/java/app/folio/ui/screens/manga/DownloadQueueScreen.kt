@@ -22,7 +22,7 @@ fun DownloadQueueScreen(onBack: () -> Unit) {
     val container = LocalContainer.current
     val queue by container.downloadManager.queue.collectAsStateWithLifecycle()
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Downloads") }) }) { padding ->
+    Scaffold(topBar = { app.folio.ui.components.BackTopBar("Downloads", onBack) }) { padding ->
         LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
             items(queue, key = { it.chapter.id }) { item ->
                 ListItem(

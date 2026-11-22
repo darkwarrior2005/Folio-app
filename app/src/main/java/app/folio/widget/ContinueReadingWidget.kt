@@ -13,7 +13,6 @@ import app.folio.R
 import app.folio.core.model.ComfortPicks
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.flow.first
 
 const val ACTION_OPEN_BOOK = "app.folio.widget.ACTION_OPEN_BOOK"
 const val EXTRA_BOOK_ID = "app.folio.widget.EXTRA_BOOK_ID"
