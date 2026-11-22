@@ -77,6 +77,8 @@ fun LibraryScreen(
     onCollections: () -> Unit,
     onMusic: () -> Unit,
     viewModel: LibraryViewModel = folioViewModel { LibraryViewModel(it) },
+    /** Shown under the top bar, e.g. the Books | Manga switcher. */
+    tabs: (@Composable () -> Unit)? = null,
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val books by viewModel.books.collectAsStateWithLifecycle()
@@ -104,6 +106,7 @@ fun LibraryScreen(
 
     Scaffold(
         topBar = {
+            Column {
             if (selectionMode) {
                 TopAppBar(
                     title = { Text(stringResource(R.string.library_selected_count, selection.size)) },
@@ -192,6 +195,8 @@ fun LibraryScreen(
                         }
                     },
                 )
+            }
+            tabs?.invoke()
             }
         },
         floatingActionButton = {

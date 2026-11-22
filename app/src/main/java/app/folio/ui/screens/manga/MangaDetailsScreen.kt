@@ -1,5 +1,9 @@
 package app.folio.ui.screens.manga
 
+import androidx.compose.material.icons.rounded.Favorite
+import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Bookmark
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -49,21 +53,22 @@ fun MangaDetailsScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(state.manga?.title ?: "") },
+            app.folio.ui.components.BackTopBar(
+                title = { Text(state.manga?.title ?: "", maxLines = 1) },
+                onBack = onBack,
                 actions = {
                     IconButton(onClick = { viewModel.toggleFavorite() }) {
                         Icon(
                             if (state.manga?.favorite == true) {
-                                androidx.compose.material.icons.Icons.Filled.Favorite
+                                androidx.compose.material.icons.Icons.Rounded.Favorite
                             } else {
-                                androidx.compose.material.icons.Icons.Filled.FavoriteBorder
+                                androidx.compose.material.icons.Icons.Rounded.FavoriteBorder
                             },
                             contentDescription = "In library",
                         )
                     }
                     IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(androidx.compose.material.icons.Icons.Filled.Refresh, contentDescription = "Refresh")
+                        Icon(androidx.compose.material.icons.Icons.Rounded.Refresh, contentDescription = "Refresh")
                     }
                 },
             )
@@ -128,7 +133,7 @@ private fun ChapterRow(
         },
         trailingContent = {
             if (chapter.bookmark) {
-                Icon(androidx.compose.material.icons.Icons.Filled.Bookmark, contentDescription = "Bookmarked")
+                Icon(androidx.compose.material.icons.Icons.Rounded.Bookmark, contentDescription = "Bookmarked")
             }
         },
         modifier = Modifier

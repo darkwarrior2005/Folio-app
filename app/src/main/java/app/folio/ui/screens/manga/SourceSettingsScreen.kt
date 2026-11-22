@@ -1,5 +1,6 @@
 package app.folio.ui.screens.manga
 
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Scaffold
@@ -20,8 +21,8 @@ import androidx.compose.ui.Modifier
  */
 @Composable
 fun SourceSettingsScreen(packageName: String, onBack: () -> Unit) {
-    Scaffold(topBar = { TopAppBar(title = { Text("Source settings") }) }) { padding ->
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+    Scaffold(topBar = { app.folio.ui.components.BackTopBar("Source settings", onBack) }) { padding ->
+        Box(Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
             Text("$packageName has no settings screen here yet")
         }
     }

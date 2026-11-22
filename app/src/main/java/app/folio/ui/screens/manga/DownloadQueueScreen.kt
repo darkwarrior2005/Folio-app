@@ -1,5 +1,6 @@
 package app.folio.ui.screens.manga
 
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -21,7 +22,7 @@ fun DownloadQueueScreen(onBack: () -> Unit) {
     val container = LocalContainer.current
     val queue by container.downloadManager.queue.collectAsStateWithLifecycle()
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Downloads") }) }) { padding ->
+    Scaffold(topBar = { app.folio.ui.components.BackTopBar("Downloads", onBack) }) { padding ->
         LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
             items(queue, key = { it.chapter.id }) { item ->
                 ListItem(
@@ -38,7 +39,7 @@ fun DownloadQueueScreen(onBack: () -> Unit) {
                     },
                     trailingContent = {
                         IconButton(onClick = { container.downloader.cancel(item.chapter.id) }) {
-                            androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Close, contentDescription = "Cancel")
+                            androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Close, contentDescription = "Cancel")
                         }
                     },
                 )

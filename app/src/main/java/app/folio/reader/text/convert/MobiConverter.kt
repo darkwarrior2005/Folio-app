@@ -7,6 +7,13 @@ import java.nio.charset.Charset
 private val WINDOWS_1252: Charset = Charset.forName("windows-1252")
 
 /**
+ * A big-endian view of bytes[offset, offset+length) whose absolute get(i) indexes from offset.
+ * (ByteBuffer.wrap(array, offset, length) alone would still index from the array's start.)
+ */
+private fun slice(bytes: ByteArray, offset: Int, length: Int): ByteBuffer =
+    ByteBuffer.wrap(bytes, offset, length).slice().order(ByteOrder.BIG_ENDIAN)
+
+/**
  * MOBI / PRC (PalmDOC-based) and AZW3 (KF8). Offsets follow the MobileRead wiki and foliate-js.
  *
  * Simplified from the full spec, by design given the time this port had: a combo MOBI+KF8 file's
@@ -39,7 +46,7 @@ object MobiConverter {
 
         // Record 0: PalmDOC header (16 bytes) then, for MOBI, the MOBI header + EXTH.
         val record0 = recordRange(0)
-        val record0Buf = ByteBuffer.wrap(bytes, record0.first, record0.last - record0.first).order(ByteOrder.BIG_ENDIAN)
+        val record0Buf = slice(bytes, record0.first, record0.last + 1 - record0.first)
         val compression = record0Buf.getShort(0).toInt()
         // PalmDOC header: compression(0), unused(2), text length(4), record count(8),
         // record size(10), encryption type(12).
@@ -54,32 +61,40 @@ object MobiConverter {
         var coverIndex = -1
         var resourceStart = Int.MAX_VALUE
 
-        val hasMobiHeader = record0.last - record0.first > 16 && String(bytes, record0.first + 16, 4) == "MOBI"
+        // MOBI header fields, at offsets counted from the start of record 0 (the MobileRead wiki
+        // and foliate-js both count them this way): "MOBI" at 16, header length at 20, text
+        // encoding at 28, full name offset/length at 84/88, first resource record at 108, EXTH
+        // flags at 128, trailing-entry flags at 242. EXTH follows right after the MOBI header.
+        val record0Length = record0.last + 1 - record0.first
+        fun int0(offset: Int): Int? = if (offset + 4 <= record0Length) record0Buf.getInt(offset) else null
+        val hasMobiHeader = record0Length >= 24 && String(bytes, record0.first + 16, 4) == "MOBI"
+        var trailingFlags = 0
         if (hasMobiHeader) {
-            val mobiOffset = record0.first + 16
-            val mobiBuf = ByteBuffer.wrap(bytes, mobiOffset, record0.last - mobiOffset).order(ByteOrder.BIG_ENDIAN)
-            val encodingValue = mobiBuf.getInt(16) // offset 16 within MOBI header = text encoding
-            encoding = if (encodingValue == 65001) Charsets.UTF_8 else WINDOWS_1252
-            resourceStart = mobiBuf.getInt(108)
-            val exthFlags = mobiBuf.getInt(128)
-            val headerLength = mobiBuf.getInt(0 + 4) // length field at MOBI header offset 4
+            val headerLength = int0(20) ?: 0
+            encoding = if (int0(28) == 65001) Charsets.UTF_8 else WINDOWS_1252
+            resourceStart = int0(108) ?: Int.MAX_VALUE
+            val exthFlags = int0(128) ?: 0
+            if (headerLength >= 0xE4 && 242 + 2 <= record0Length) {
+                trailingFlags = record0Buf.getShort(242).toInt() and 0xFFFF
+            }
             if ((exthFlags and 0x40) != 0) {
-                val exthOffset = mobiOffset + headerLength
+                val exthOffset = record0.first + 16 + headerLength
                 if (exthOffset + 12 <= bytes.size && String(bytes, exthOffset, 4) == "EXTH") {
-                    val exthBuf = ByteBuffer.wrap(bytes, exthOffset, bytes.size - exthOffset).order(ByteOrder.BIG_ENDIAN)
+                    val exthBuf = slice(bytes, exthOffset, bytes.size - exthOffset)
                     val recCount = exthBuf.getInt(8)
                     var pos = 12
-                    repeat(recCount) {
-                        if (exthOffset + pos + 8 > bytes.size) return@repeat
+                    for (r in 0 until recCount) {
+                        if (exthOffset + pos + 8 > bytes.size) break
                         val recType = exthBuf.getInt(pos)
                         val recLen = exthBuf.getInt(pos + 4)
+                        if (recLen < 8) break
                         val dataStart = exthOffset + pos + 8
-                        val dataLen = (recLen - 8).coerceAtLeast(0)
+                        val dataLen = recLen - 8
                         if (dataStart + dataLen <= bytes.size) {
                             when (recType) {
                                 100 -> author = String(bytes, dataStart, dataLen, Charsets.UTF_8)
                                 503 -> title = String(bytes, dataStart, dataLen, Charsets.UTF_8)
-                                201 -> coverIndex = ByteBuffer.wrap(bytes, dataStart, dataLen).order(ByteOrder.BIG_ENDIAN).int
+                                201 -> if (dataLen >= 4) coverIndex = slice(bytes, dataStart, dataLen).getInt(0)
                             }
                         }
                         pos += recLen
@@ -87,32 +102,19 @@ object MobiConverter {
                 }
             }
             if (title == null) {
-                val fullNameOffset = mobiBuf.getInt(84)
-                val fullNameLength = mobiBuf.getInt(88)
-                if (fullNameOffset > 0 && mobiOffset + fullNameOffset + fullNameLength <= bytes.size) {
-                    title = String(bytes, mobiOffset + fullNameOffset, fullNameLength, Charsets.UTF_8)
+                val fullNameOffset = int0(84) ?: 0
+                val fullNameLength = int0(88) ?: 0
+                if (fullNameOffset > 0 && fullNameLength > 0 && fullNameOffset + fullNameLength <= record0Length) {
+                    title = String(bytes, record0.first + fullNameOffset, fullNameLength, encoding)
                 }
             }
-        }
-
-        // Trailing-entry flags (MOBI header offset 242, relative to mobiOffset) say how many
-        // bytes of each text record are backward-varint trailing data to strip before decompressing.
-        val trailingFlags = if (hasMobiHeader) {
-            val mobiOffset = record0.first + 16
-            if (mobiOffset + 242 + 2 <= bytes.size) {
-                ByteBuffer.wrap(bytes, mobiOffset + 242, 2).order(ByteOrder.BIG_ENDIAN).short.toInt()
-            } else {
-                0
-            }
-        } else {
-            0
         }
 
         val textBuilder = StringBuilder()
         for (i in 1..recordCount) {
             if (i >= numRecords) break
             val range = recordRange(i)
-            var recordBytes = bytes.copyOfRange(range.first, range.last)
+            var recordBytes = bytes.copyOfRange(range.first, range.last + 1)
             recordBytes = stripTrailingEntries(recordBytes, trailingFlags)
             val decoded = when (compression) {
                 1 -> recordBytes
@@ -126,7 +128,7 @@ object MobiConverter {
             val imgRecordIndex = resourceStart + coverIndex
             if (imgRecordIndex in 0 until numRecords) {
                 val range = recordRange(imgRecordIndex)
-                bytes.copyOfRange(range.first, range.last)
+                bytes.copyOfRange(range.first, range.last + 1)
             } else {
                 null
             }
@@ -142,74 +144,65 @@ object MobiConverter {
     private fun convertPalmDocMarkup(text: String): String =
         text.replace(Regex("<mbp:pagebreak[^>]*/?>", RegexOption.IGNORE_CASE), "<hr>")
 
+    /**
+     * Strips the trailing entries [flags] declares from the end of a text record: for each set
+     * bit above bit 0, an entry whose size (it included) is a backward varint in its last bytes;
+     * then, for bit 0, the multibyte-overlap bytes, (last byte & 3) + 1 of them. As calibre does.
+     */
     private fun stripTrailingEntries(record: ByteArray, flags: Int): ByteArray {
         if (flags == 0) return record
         var end = record.size
-        // Multibyte overlap flag (bit 0) is handled innermost; count down from the highest bit.
-        for (bit in 7 downTo 1) {
-            if ((flags and (1 shl bit)) != 0) {
-                end = removeTrailingEntry(record, end)
-            }
+        var bits = flags shr 1
+        while (bits != 0) {
+            if ((bits and 1) != 0) end = (end - trailingEntrySize(record, end)).coerceAtLeast(0)
+            bits = bits shr 1
         }
-        if ((flags and 1) != 0) {
-            end = removeMultibyteTrailingEntry(record, end)
+        if ((flags and 1) != 0 && end > 0) {
+            end = (end - ((record[end - 1].toInt() and 0x3) + 1)).coerceAtLeast(0)
         }
         return record.copyOfRange(0, end)
     }
 
-    private fun removeTrailingEntry(record: ByteArray, end: Int): Int {
-        var length = 0
-        var pos = end
-        for (shift in intArrayOf(0, 7, 14, 21)) {
-            pos--
-            if (pos < 0) break
-            val byte = record[pos].toInt() and 0xFF
-            length = length or ((byte and 0x7F) shl shift)
-            if ((byte and 0x80) != 0) break
+    private fun trailingEntrySize(record: ByteArray, end: Int): Int {
+        var size = 0
+        for (i in (end - 4).coerceAtLeast(0) until end) {
+            val byte = record[i].toInt() and 0xFF
+            if ((byte and 0x80) != 0) size = 0
+            size = (size shl 7) or (byte and 0x7F)
         }
-        return (end - length).coerceAtLeast(0)
+        return size
     }
 
-    private fun removeMultibyteTrailingEntry(record: ByteArray, end: Int): Int {
-        val newEnd = removeTrailingEntry(record, end)
-        // The multibyte flag's length already includes its own size byte(s); nothing further to do.
-        return newEnd
-    }
-
-    /** PalmDOC LZ77-ish decompression: literal bytes, back-references, and space-pairs. */
-    private fun decompressPalmDoc(input: ByteArray): ByteArray {
-        val out = java.io.ByteArrayOutputStream(input.size * 3)
+    /** PalmDOC LZ77: literals, runs of 1-8 literal bytes, back-references, and space pairs. */
+    internal fun decompressPalmDoc(input: ByteArray): ByteArray {
+        var out = ByteArray(maxOf(input.size * 8, 4096))
+        var size = 0
+        fun put(b: Int) {
+            if (size == out.size) out = out.copyOf(out.size * 2)
+            out[size++] = b.toByte()
+        }
         var i = 0
         while (i < input.size) {
-            val byte = input[i].toInt() and 0xFF
-            i++
-            when {
-                byte == 0 -> out.write(byte)
-                byte in 1..8 -> {
-                    val count = byte
-                    repeat(count) { if (i < input.size) out.write(input[i++].toInt() and 0xFF) }
-                }
-                byte <= 0x7F -> out.write(byte)
-                byte in 0xC0..0xFF -> {
-                    out.write(' '.code)
-                    out.write(byte xor 0x80)
-                }
-                else -> { // 0x80..0xBF: back-reference
+            val byte = input[i++].toInt() and 0xFF
+            when (byte) {
+                0 -> put(0)
+                in 1..8 -> repeat(byte) { if (i < input.size) put(input[i++].toInt() and 0xFF) }
+                in 0x09..0x7F -> put(byte)
+                in 0x80..0xBF -> {
                     if (i >= input.size) break
-                    val next = input[i].toInt() and 0xFF
-                    i++
-                    val combined = ((byte and 0x3F) shl 8) or next
+                    val combined = ((byte and 0x3F) shl 8) or (input[i++].toInt() and 0xFF)
                     val distance = combined shr 3
                     val length = (combined and 0x07) + 3
-                    val existing = out.toByteArray()
-                    val start = (existing.size - distance).coerceAtLeast(0)
-                    for (k in 0 until length) {
-                        val sourceIndex = start + k
-                        if (sourceIndex in existing.indices) out.write(existing[sourceIndex].toInt())
-                    }
+                    if (distance == 0 || distance > size) continue
+                    // Byte by byte, so a copy that overlaps its own output (distance < length) works.
+                    repeat(length) { put(out[size - distance].toInt() and 0xFF) }
+                }
+                else -> {
+                    put(' '.code)
+                    put(byte xor 0x80)
                 }
             }
         }
-        return out.toByteArray()
+        return out.copyOf(size)
     }
 }

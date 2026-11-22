@@ -57,6 +57,14 @@ class ConvertersTest {
     }
 
     @Test
+    fun palmDocDecompressesOverlappingBackReferencesAndSpacePairs() {
+        // "abc", then a back-reference 3 bytes back for 6 bytes (overlaps its own output),
+        // then 0xE1 = a space followed by 'a'.
+        val compressed = byteArrayOf(0x61, 0x62, 0x63, 0x80.toByte(), 0x1B, 0xE1.toByte())
+        assertEquals("abcabcabc a", String(MobiConverter.decompressPalmDoc(compressed), Charsets.ISO_8859_1))
+    }
+
+    @Test
     fun mobiRejectsNonMobiInput() {
         assertThrows(ConversionException::class.java) {
             MobiConverter.convert(ByteArray(100))

@@ -1,5 +1,8 @@
 package app.folio.ui.screens.manga
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Add
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,8 +37,8 @@ fun MangaSettingsScreen(onBack: () -> Unit) {
         scope.launch { container.settings.update { it.copy(manga = transform(it.manga)) } }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Manga sources") }) }) { padding ->
-        Column(Modifier.fillMaxSize()) {
+    Scaffold(topBar = { app.folio.ui.components.BackTopBar("Manga sources", onBack) }) { padding ->
+        Column(Modifier.fillMaxSize().padding(padding)) {
             SwitchRow("Manga sources", manga.sourcesEnabled) { update { m -> m.copy(sourcesEnabled = it) } }
             SwitchRow("Download over Wi-Fi only", manga.downloadOverWifiOnly) { update { m -> m.copy(downloadOverWifiOnly = it) } }
             StepperRow(
@@ -61,11 +64,11 @@ private fun StepperRow(label: String, value: Int, range: IntRange, onValueChange
         Text(label)
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = { if (value > range.first) onValueChange(value - 1) }) {
-                Icon(androidx.compose.material.icons.Icons.Filled.Remove, contentDescription = "Decrease")
+                Icon(androidx.compose.material.icons.Icons.Rounded.Remove, contentDescription = "Decrease")
             }
             Text(value.toString())
             IconButton(onClick = { if (value < range.last) onValueChange(value + 1) }) {
-                Icon(androidx.compose.material.icons.Icons.Filled.Add, contentDescription = "Increase")
+                Icon(androidx.compose.material.icons.Icons.Rounded.Add, contentDescription = "Increase")
             }
         }
     }

@@ -82,7 +82,7 @@ class MainActivity : AppCompatActivity() {
                                     settings = settings.nightLight,
                                     dismissedUntil = bedtimeDismissedUntil.longValue,
                                     onSnooze = { bedtimeDismissedUntil.longValue = it },
-                                    onGoodNight = { bedtimeDismissedUntil = it },
+                                    onGoodNight = { bedtimeDismissedUntil.longValue = it },
                                 ) {
                                     FolioRoot(
                                         settings = settings,

@@ -1,5 +1,6 @@
 package app.folio.ui.screens.manga
 
+import androidx.compose.runtime.getValue
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.lazy.LazyColumn
@@ -9,7 +10,6 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,7 +28,7 @@ fun BrowseSourcesScreen(onOpenSource: (Long) -> Unit, onBack: () -> Unit) {
     val viewModel: BrowseSourcesViewModel = folioViewModel { BrowseSourcesViewModel(it) }
     val sources by viewModel.sources.collectAsStateWithLifecycle()
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Browse") }) }) { padding ->
+    Scaffold(topBar = { app.folio.ui.components.BackTopBar("Browse", onBack) }) { padding ->
         LazyColumn(Modifier.fillMaxSize(), contentPadding = padding) {
             items(sources, key = { it.id }) { source ->
                 ListItem(

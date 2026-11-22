@@ -1,5 +1,7 @@
 package app.folio.ui.screens.manga
 
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -37,7 +39,7 @@ fun ExtensionsScreen(initialTab: Int, onBack: () -> Unit, onSourceSettings: (Str
     val lockState = rememberDeviceAuth()
     var tab by remember { mutableIntStateOf(initialTab) }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("Extensions") }) }) { padding ->
+    Scaffold(topBar = { app.folio.ui.components.BackTopBar("Extensions", onBack) }) { padding ->
         DeviceLockGate(lockState, onCancelled = onBack) {
             androidx.compose.foundation.layout.Column(Modifier.fillMaxSize().padding(padding)) {
                 TabRow(selectedTabIndex = tab) {
@@ -92,10 +94,10 @@ private fun InstalledExtensionRow(ext: InstalledExtension, viewModel: Extensions
                     onCheckedChange = { viewModel.setEnabled(ext.packageName, it) },
                 )
                 IconButton(onClick = { onSourceSettings(ext.packageName) }) {
-                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Settings, contentDescription = "Settings")
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Settings, contentDescription = "Settings")
                 }
                 IconButton(onClick = { viewModel.uninstall(ext.packageName) }) {
-                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Delete, contentDescription = "Uninstall")
+                    androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Delete, contentDescription = "Uninstall")
                 }
             }
         },
@@ -132,7 +134,7 @@ private fun RepositoriesList(viewModel: ExtensionsViewModel) {
                 supportingContent = { Text(repo.baseUrl) },
                 trailingContent = {
                     IconButton(onClick = { viewModel.removeRepo(repo.id) }) {
-                        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Delete, contentDescription = "Remove")
+                        androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Delete, contentDescription = "Remove")
                     }
                 },
             )

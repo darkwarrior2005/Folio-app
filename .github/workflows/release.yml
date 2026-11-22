@@ -61,6 +61,13 @@ jobs:
           } > keystore.properties
           echo "signed=true" >> "$GITHUB_OUTPUT"
 
+      - name: Read the app version
+        id: version
+        run: |
+          version=$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)".*/\1/p' app/build.gradle.kts)
+          if [ -z "$version" ]; then echo "::error::versionName not found in app/build.gradle.kts"; exit 1; fi
+          echo "name=$version" >> "$GITHUB_OUTPUT"
+
       - name: Unit tests
         run: ./gradlew :app:testDebugUnitTest
 
@@ -69,14 +76,14 @@ jobs:
         run: |
           ./gradlew :app:assembleRelease
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/Folio-${GITHUB_REF_NAME//\//-}.apk"
+          cp app/build/outputs/apk/release/app-release.apk "dist/Folio-${{ steps.version.outputs.name }}.apk"
 
       - name: Build debug APK (no signing secrets)
         if: steps.signing.outputs.signed != 'true'
         run: |
           ./gradlew :app:assembleDebug
           mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk "dist/Folio-${GITHUB_REF_NAME//\//-}-debug.apk"
+          cp app/build/outputs/apk/debug/app-debug.apk "dist/Folio-${{ steps.version.outputs.name }}-debug.apk"
 
       - uses: actions/upload-artifact@v4
         with:

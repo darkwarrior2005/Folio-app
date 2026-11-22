@@ -29,7 +29,7 @@ desugar = "2.1.5"
 okhttp = "5.5.0"
 rxjava = "1.3.8"
 injekt = "1.16.1"
-quickjs = "0.9.3"
+quickjs = "547f5b1597"
 imagedecoder = "16"
 preference = "1.2.1"
 
@@ -41,7 +41,7 @@ rxjava = { group = "io.reactivex", name = "rxjava", version.ref = "rxjava" }
 injekt-core = { group = "uy.kohesive.injekt", name = "injekt-core", version.ref = "injekt" }
 kotlinx-serialization-json-okio = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json-okio", version.ref = "serialization" }
 kotlinx-serialization-protobuf = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-protobuf", version.ref = "serialization" }
-quickjs-android = { group = "app.cash.quickjs", name = "quickjs-android", version.ref = "quickjs" }
+quickjs-android = { group = "com.github.zhanghai.quickjs-java", name = "quickjs-android", version.ref = "quickjs" }
 imagedecoder = { group = "ca.mpreg", name = "imagedecoder", version.ref = "imagedecoder" }
 androidx-preference = { group = "androidx.preference", name = "preference-ktx", version.ref = "preference" }
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }

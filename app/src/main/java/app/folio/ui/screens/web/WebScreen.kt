@@ -1,5 +1,7 @@
 package app.folio.ui.screens.web
 
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -46,7 +48,7 @@ fun WebScreen(initialUrl: String?, onBack: () -> Unit, onOpenBook: (Long) -> Uni
         }
     }
 
-    Scaffold(topBar = { TopAppBar(title = { Text("From the web") }) }) { padding ->
+    Scaffold(topBar = { app.folio.ui.components.BackTopBar("From the web", onBack) }) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
             Row(Modifier.fillMaxWidth().padding(16.dp)) {
                 Text("From the web", modifier = Modifier.weight(1f))
@@ -95,10 +97,10 @@ private fun FeedsTab(viewModel: WebViewModel) {
                     trailingContent = {
                         Row {
                             IconButton(onClick = { viewModel.openFeed(feed) }) {
-                                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Refresh, contentDescription = "Load")
+                                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Refresh, contentDescription = "Load")
                             }
                             IconButton(onClick = { viewModel.removeFeed(feed) }) {
-                                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Filled.Delete, contentDescription = "Remove")
+                                androidx.compose.material3.Icon(androidx.compose.material.icons.Icons.Rounded.Delete, contentDescription = "Remove")
                             }
                         }
                     },

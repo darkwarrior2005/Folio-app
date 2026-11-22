@@ -104,11 +104,12 @@ fun FolioRoot(
         }
     }
 
-    val pendingWebUrl by LocalContainer.current.pendingWebUrl.collectAsStateWithLifecycle()
+    val rootContainer = LocalContainer.current
+    val pendingWebUrl by rootContainer.pendingWebUrl.collectAsStateWithLifecycle()
     LaunchedEffect(pendingWebUrl) {
         pendingWebUrl?.let { url ->
             navController.navigate(Routes.web(url))
-            LocalContainer.current.pendingWebUrl.value = null
+            rootContainer.pendingWebUrl.value = null
         }
     }
 
@@ -210,6 +211,8 @@ private fun FolioNavHost(
                             onCollections = { navController.navigate(Routes.COLLECTIONS) },
                             onOpenManga = { navController.navigate(Routes.mangaDetails(it)) },
                             onFindMangaOnline = { navController.navigate(Routes.MANGA_BROWSE) },
+                            onMangaExtensions = { navController.navigate(Routes.mangaExtensions(0)) },
+                            onMangaDownloads = { navController.navigate(Routes.MANGA_DOWNLOADS) },
                         )
                     }
                     Box(Modifier.weight(0.58f)) {
@@ -235,6 +238,8 @@ private fun FolioNavHost(
                     onCollections = { navController.navigate(Routes.COLLECTIONS) },
                     onOpenManga = { navController.navigate(Routes.mangaDetails(it)) },
                     onFindMangaOnline = { navController.navigate(Routes.MANGA_BROWSE) },
+                    onMangaExtensions = { navController.navigate(Routes.mangaExtensions(0)) },
+                    onMangaDownloads = { navController.navigate(Routes.MANGA_DOWNLOADS) },
                 )
             }
         }
