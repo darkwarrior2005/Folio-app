@@ -180,7 +180,7 @@ class MangaTablesRebuildTest {
         on.createStatement().use { s ->
             s.executeQuery(sql).use { rs ->
                 val n = rs.metaData.columnCount
-                buildList { while (rs.next()) add((1..n).joinToString("|") { rs.getString(it).toString() }) }
+                buildList { while (rs.next()) add((1..n).joinToString("|") { rs.getString(it) ?: "null" }) }
             }
         }
 
