@@ -8,7 +8,7 @@ import eu.kanade.tachiyomi.source.SourceFactory
 
 private const val EXTENSION_FEATURE = "tachiyomi.extension"
 private const val METADATA_SOURCE_CLASS = "tachiyomi.extension.class"
-private const val METADATA_LIB_VERSION = "tachiyomi.extension.lib.version"
+private const val METADATA_NSFW = "tachiyomi.extension.nsfw"
 private val SUPPORTED_LIB_VERSIONS = setOf(1.4, 1.5, 1.6)
 
 data class LoadedExtension(
@@ -49,32 +49,37 @@ class ExtensionLoader(private val context: Context, private val trust: Extension
         val appInfo = packageInfo.applicationInfo
             ?: return ExtensionLoadResult.Failed(packageName, "No application info")
         val metaData = appInfo.metaData ?: return ExtensionLoadResult.Failed(packageName, "No metadata")
-        val libVersion = metaData.getString(METADATA_LIB_VERSION)?.toDoubleOrNull()
-            ?: return ExtensionLoadResult.Failed(packageName, "No extension-lib version declared")
+        // Extensions carry their lib version in versionName: "1.6.1" is lib 1.6, extension version 1.
+        val versionName = packageInfo.versionName.orEmpty()
+        val libVersion = versionName.substringBeforeLast('.').toDoubleOrNull()
+            ?: return ExtensionLoadResult.Failed(packageName, "No extension-lib version in \"$versionName\"")
         if (libVersion !in SUPPORTED_LIB_VERSIONS) {
             return ExtensionLoadResult.Failed(packageName, "Unsupported extension-lib version $libVersion")
         }
-        val className = metaData.getString(METADATA_SOURCE_CLASS)
-            ?: return ExtensionLoadResult.Failed(packageName, "No source class declared")
-        val fullClassName = if (className.startsWith(".")) packageName + className else className
+        val classNames = metaData.getString(METADATA_SOURCE_CLASS)
+            ?.split(';')?.map { it.trim() }?.filter { it.isNotEmpty() }
+            ?.map { if (it.startsWith(".")) packageName + it else it }
+            .orEmpty()
+        if (classNames.isEmpty()) return ExtensionLoadResult.Failed(packageName, "No source class declared")
 
         return try {
             val classLoader = ExtensionClassLoader(appInfo.sourceDir, context.classLoader)
-            val obj = Class.forName(fullClassName, false, classLoader).getDeclaredConstructor().newInstance()
-            val sources = when (obj) {
-                is SourceFactory -> obj.createSources()
-                is Source -> listOf(obj)
-                else -> return ExtensionLoadResult.Failed(packageName, "Unknown source class type")
+            val sources = classNames.flatMap { className ->
+                when (val obj = Class.forName(className, false, classLoader).getDeclaredConstructor().newInstance()) {
+                    is SourceFactory -> obj.createSources()
+                    is Source -> listOf(obj)
+                    else -> return ExtensionLoadResult.Failed(packageName, "Unknown source class type")
+                }
             }
             ExtensionLoadResult.Loaded(
                 LoadedExtension(
                     packageName = packageName,
-                    name = pmLabel(packageInfo),
-                    versionName = packageInfo.versionName ?: "",
+                    name = pmLabel(packageInfo).removePrefix("Tachiyomi: "),
+                    versionName = versionName,
                     versionCode = longVersionCode(packageInfo),
                     libVersion = libVersion,
                     sources = sources,
-                    isNsfw = metaData.getInt("tachiyomi.extension.nsfw", 0) == 1,
+                    isNsfw = metaData.getInt(METADATA_NSFW, 0) == 1,
                 ),
             )
         } catch (e: Throwable) {

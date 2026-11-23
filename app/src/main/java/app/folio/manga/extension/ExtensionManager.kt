@@ -82,14 +82,37 @@ class ExtensionManager(
     }
 
     suspend fun fetchAvailable(): AvailableExtensionsResult {
-        val repos = mangaDao.repos().map { it.baseUrl }
-        return repoService.fetchAll(repos)
+        val repos = mangaDao.repos()
+        // Repositories added before Folio stored their name and signing key get them filled in.
+        var backfilled = false
+        repos.filter { it.name.isBlank() || it.signingKeyFingerprint == null }.forEach { repo ->
+            val info = runCatching { repoService.fetchInfo(repo.baseUrl) }.getOrNull() ?: return@forEach
+            mangaDao.updateRepo(
+                repo.copy(
+                    name = info.name.ifBlank { repo.name },
+                    website = info.website ?: repo.website,
+                    signingKeyFingerprint = info.signingKeyFingerprint ?: repo.signingKeyFingerprint,
+                ),
+            )
+            backfilled = true
+        }
+        // A newly known key can trust extensions that were waiting for it.
+        if (backfilled && _untrusted.value.isNotEmpty()) runCatching { refreshInstalled() }
+        return repoService.fetchAll(repos.map { it.baseUrl })
     }
 
     suspend fun addRepo(baseUrl: String) {
         val normalized = normalizeRepoUrl(baseUrl)
         if (mangaDao.repos().any { it.baseUrl == normalized }) return
-        mangaDao.insertRepo(ExtensionRepoEntity(baseUrl = normalized))
+        val info = runCatching { repoService.fetchInfo(normalized) }.getOrNull()
+        mangaDao.insertRepo(
+            ExtensionRepoEntity(
+                baseUrl = normalized,
+                name = info?.name.orEmpty(),
+                website = info?.website,
+                signingKeyFingerprint = info?.signingKeyFingerprint,
+            ),
+        )
     }
 
     suspend fun removeRepo(id: Long) = mangaDao.deleteRepo(id)

@@ -13,11 +13,22 @@ import java.security.MessageDigest
 class ExtensionTrust(private val mangaDao: MangaDao) {
 
     suspend fun isTrusted(packageInfo: PackageInfo): Boolean {
+        // Signed with the key of a repository the user added: trusted, as in Mihon.
+        val repoKeys = mangaDao.repos().mapNotNull { it.signingKeyFingerprint?.lowercase() }.toSet()
+        if (repoKeys.isNotEmpty() && certificateFingerprintsOf(packageInfo).any { it in repoKeys }) return true
+
         val fingerprint = fingerprintOf(packageInfo) ?: return false
         val versionCode = longVersionCodeOf(packageInfo)
         return mangaDao.trustFor(packageInfo.packageName)
             .any { it.versionCode == versionCode && it.signatureHash == fingerprint }
     }
+
+    /** SHA-256 of each signing certificate, the form repositories publish their key in. */
+    fun certificateFingerprintsOf(packageInfo: PackageInfo): List<String> =
+        signaturesOf(packageInfo).orEmpty().map { signature ->
+            MessageDigest.getInstance("SHA-256").digest(signature.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+        }
 
     suspend fun trust(packageInfo: PackageInfo) {
         val fingerprint = fingerprintOf(packageInfo) ?: return
@@ -31,10 +42,6 @@ class ExtensionTrust(private val mangaDao: MangaDao) {
     }
 
     suspend fun revoke(packageName: String) = mangaDao.untrust(packageName)
-
-    /** True when [fingerprint] matches a signing key a trusted repository is known to use. */
-    suspend fun isRepoSignedKey(fingerprint: String, repoFingerprints: Collection<String>): Boolean =
-        fingerprint in repoFingerprints
 
     fun fingerprintOf(packageInfo: PackageInfo): String? {
         val signatures = signaturesOf(packageInfo) ?: return null

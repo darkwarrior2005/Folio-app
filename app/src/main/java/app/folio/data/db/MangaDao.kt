@@ -94,6 +94,9 @@ interface MangaDao {
     @Insert
     suspend fun insertRepo(repo: ExtensionRepoEntity): Long
 
+    @androidx.room.Update
+    suspend fun updateRepo(repo: ExtensionRepoEntity)
+
     @Query("DELETE FROM extension_repos WHERE id = :id")
     suspend fun deleteRepo(id: Long)
 
