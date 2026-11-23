@@ -42,6 +42,9 @@ class ExtensionsViewModel(private val container: AppContainer) : ViewModel() {
         .distinctUntilChanged()
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    /** Installed extensions signed with a key no added repository uses; they wait for the user. */
+    val untrusted: StateFlow<List<android.content.pm.PackageInfo>> = manager.untrusted
+
     val disabledExtensions: StateFlow<Set<String>> = container.settings.settings
         .map { it.manga.disabledExtensions }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
@@ -103,6 +106,10 @@ class ExtensionsViewModel(private val container: AppContainer) : ViewModel() {
                     if (step is InstallStep.Success) runCatching { manager.refreshInstalled() }
                 }
         }
+    }
+
+    fun trust(packageInfo: android.content.pm.PackageInfo) {
+        viewModelScope.launch { runCatching { manager.trust(packageInfo) } }
     }
 
     fun uninstall(packageName: String) = manager.installer.uninstall(packageName)

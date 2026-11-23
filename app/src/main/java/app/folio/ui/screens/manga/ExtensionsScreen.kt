@@ -137,10 +137,12 @@ private fun ExtensionsTab(
     val state by viewModel.state.collectAsStateWithLifecycle()
     val repos by viewModel.repos.collectAsStateWithLifecycle()
     val disabled by viewModel.disabledExtensions.collectAsStateWithLifecycle()
+    val untrusted by viewModel.untrusted.collectAsStateWithLifecycle()
     var query by remember { mutableStateOf("") }
 
     fun matches(name: String) = query.isBlank() || name.contains(query.trim(), ignoreCase = true)
-    val installedPackages = state.installed.map(InstalledExtension::packageName).toSet()
+    val installedPackages = state.installed.map(InstalledExtension::packageName).toSet() +
+        untrusted.map { it.packageName }
     val installed = state.installed.filter { matches(it.name) }
     val available = state.available
         .filter { it.packageName !in installedPackages && matches(it.name) }
@@ -183,7 +185,10 @@ private fun ExtensionsTab(
                 ) {
                     Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            "${state.failedRepos.size} of ${state.totalRepos} repositories couldn't be loaded.",
+                            "${state.failedRepos.size} of ${state.totalRepos} repositories couldn't be loaded: " +
+                                state.failedRepos.joinToString { url ->
+                                    repos.firstOrNull { it.baseUrl == url }?.name?.ifBlank { null } ?: url
+                                },
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                             modifier = Modifier.weight(1f),
@@ -191,6 +196,27 @@ private fun ExtensionsTab(
                         TextButton(onClick = viewModel::refresh) { Text("Try again") }
                     }
                 }
+            }
+        }
+        if (untrusted.isNotEmpty()) {
+            sectionHeader("Waiting for your trust (${untrusted.size})")
+            items(untrusted, key = { "untrusted:" + it.packageName }) { info ->
+                ListItem(
+                    headlineContent = { Text(info.packageName.substringAfterLast('.'), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                    supportingContent = {
+                        Text(
+                            "v${info.versionName.orEmpty()} · signed by a key none of your repositories use",
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    },
+                    trailingContent = {
+                        Row {
+                            TextButton(onClick = { viewModel.uninstall(info.packageName) }) { Text("Uninstall") }
+                            FilledTonalButton(onClick = { viewModel.trust(info) }) { Text("Trust") }
+                        }
+                    },
+                )
             }
         }
         if (installed.isNotEmpty()) {
@@ -211,7 +237,7 @@ private fun ExtensionsTab(
                 AvailableExtensionRow(ext, state.installSteps[ext.packageName], onInstall = { viewModel.install(ext) })
             }
         }
-        if (installed.isEmpty() && available.isEmpty() && !state.loading) {
+        if (installed.isEmpty() && available.isEmpty() && untrusted.isEmpty() && !state.loading) {
             item {
                 Text(
                     if (query.isBlank()) "No extensions found in your repositories." else "No extensions match \"$query\".",
