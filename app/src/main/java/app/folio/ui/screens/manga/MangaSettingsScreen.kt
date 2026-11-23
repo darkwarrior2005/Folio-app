@@ -22,7 +22,7 @@ import app.folio.AppContainer
 import app.folio.R
 import app.folio.data.settings.MangaSettings
 import app.folio.ui.components.NavigationRow
-import app.folio.ui.components.SectionHeader
+import app.folio.ui.components.SettingsSectionHeader
 import app.folio.ui.components.SettingsScaffold
 import app.folio.ui.components.SliderRow
 import app.folio.ui.components.SwitchRow
@@ -113,7 +113,7 @@ fun MangaSettingsScreen(
         NavigationRow(stringResource(R.string.manga_extensions), null, onExtensions)
         NavigationRow(stringResource(R.string.manga_repos), null, onRepos)
 
-        SectionHeader(
+        SettingsSectionHeader(
             title = stringResource(R.string.manga_setting_downloads),
             modifier = Modifier.padding(top = 18.dp),
         )
