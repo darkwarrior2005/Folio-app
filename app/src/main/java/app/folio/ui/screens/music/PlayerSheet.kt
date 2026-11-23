@@ -9,13 +9,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Shuffle
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.SkipPrevious
-import androidx.compose.material.icons.rounded.Stop
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.folio.R
 import app.folio.data.db.TrackEntity
 import app.folio.ui.LocalContainer
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.util.Format
 
 @Composable
@@ -71,25 +65,25 @@ fun PlayerSheet(onDismiss: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 IconToggleButton(checked = now.shuffle, onCheckedChange = player::setShuffle) {
-                    Icon(Icons.Rounded.Shuffle, contentDescription = stringResource(R.string.music_shuffle))
+                    Icon(FolioIcons.Shuffle, contentDescription = stringResource(R.string.music_shuffle))
                 }
                 IconButton(onClick = player::previous) {
-                    Icon(Icons.Rounded.SkipPrevious, contentDescription = stringResource(R.string.music_previous))
+                    Icon(FolioIcons.SkipPrevious, contentDescription = stringResource(R.string.music_previous))
                 }
                 FilledIconButton(onClick = player::toggle) {
                     Icon(
-                        if (now.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        if (now.isPlaying) FolioIcons.Pause else FolioIcons.PlayArrow,
                         contentDescription = stringResource(if (now.isPlaying) R.string.music_pause else R.string.music_play),
                     )
                 }
                 IconButton(onClick = player::next) {
-                    Icon(Icons.Rounded.SkipNext, contentDescription = stringResource(R.string.music_next))
+                    Icon(FolioIcons.SkipNext, contentDescription = stringResource(R.string.music_next))
                 }
                 IconButton(onClick = {
                     player.stop()
                     onDismiss()
                 }) {
-                    Icon(Icons.Rounded.Stop, contentDescription = stringResource(R.string.music_stop))
+                    Icon(FolioIcons.Stop, contentDescription = stringResource(R.string.music_stop))
                 }
             }
             Text(stringResource(R.string.music_queue), style = MaterialTheme.typography.titleSmall)

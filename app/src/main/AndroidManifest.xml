@@ -2,11 +2,27 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Offline by default, not by force: manga sources and From the web are each gated by
-         their own setting (MangaSettings.sourcesEnabled, WebSettings.enabled), off until the
-         user turns them on. -->
+    <!--
+        Offline by default, not offline by force. The manga library needs the network to browse
+        sources, install extensions and download chapters, so the permission is granted, but
+        every one of those paths is gated on the "manga sources" setting, which starts off. With
+        it off Folio opens no connection; nothing in the book, music or reader code ever does.
+    -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Installing an extension hands its apk to the system package installer. -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
+
+    <!--
+        Extensions are ordinary installed apps, and from API 30 an app cannot see packages it
+        does not name. Finding them at all needs this, which is why Folio is not a Play Store
+        app. Flagged for lint because that is exactly what it is.
+    -->
+    <uses-permission
+        android:name="android.permission.QUERY_ALL_PACKAGES"
+        tools:ignore="QueryAllPackagesPermission" />
 
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
@@ -15,14 +31,6 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
-
-    <!-- Manga extensions are sideloaded APKs, installed and removed through the system installer. -->
-    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
-    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
-    <!-- To see which extension APKs are installed. Rules out Play Store distribution. -->
-    <uses-permission
-        android:name="android.permission.QUERY_ALL_PACKAGES"
-        tools:ignore="QueryAllPackagesPermission" />
 
     <application
         android:name=".FolioApp"
@@ -70,7 +78,7 @@
                 <data android:mimeType="text/rtf" />
             </intent-filter>
 
-            <!-- Share a book, or a plain link (From the web), into the library. -->
+            <!-- Share a book into the library. -->
             <intent-filter android:label="@string/app_name">
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -97,6 +105,25 @@
             </intent-filter>
         </activity>
 
+        <!--
+            Receives the outcome of an extension install and the system's request to show the
+            user the confirmation dialog, plus package changes so the source list follows what
+            is installed.
+        -->
+        <receiver
+            android:name=".manga.extension.ExtensionInstallReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="app.folio.EXTENSION_INSTALL_STATUS" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.PACKAGE_ADDED" />
+                <action android:name="android.intent.action.PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.PACKAGE_REMOVED" />
+                <data android:scheme="package" />
+            </intent-filter>
+        </receiver>
+
         <service
             android:name=".pomodoro.PomodoroService"
             android:exported="false"
@@ -106,18 +133,15 @@
                 android:value="Keeps the user's reading focus timer running and visible while they read offline." />
         </service>
 
-        <receiver
-            android:name=".manga.extension.ExtensionInstallReceiver"
-            android:exported="true">
+        <service
+            android:name=".music.MusicPlaybackService"
+            android:exported="true"
+            android:foregroundServiceType="mediaPlayback">
             <intent-filter>
-                <action android:name="app.folio.EXTENSION_INSTALL_STATUS" />
-                <action android:name="android.intent.action.PACKAGE_ADDED" />
-                <action android:name="android.intent.action.PACKAGE_REPLACED" />
-                <action android:name="android.intent.action.PACKAGE_REMOVED" />
-                <data android:scheme="package" />
+                <action android:name="androidx.media3.session.MediaSessionService" />
             </intent-filter>
-        </receiver>
-
+        </service>
+        <!-- Shares the files Folio makes on purpose (quote cards), nothing else. -->
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.files"
@@ -128,9 +152,11 @@
                 android:resource="@xml/file_paths" />
         </provider>
 
+        <!-- Home-screen widget: the book being read, one tap from its page. -->
         <receiver
             android:name=".widget.ContinueReadingWidget"
-            android:exported="false">
+            android:exported="false"
+            android:label="@string/widget_name">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -138,14 +164,5 @@
                 android:name="android.appwidget.provider"
                 android:resource="@xml/widget_continue_reading_info" />
         </receiver>
-
-        <service
-            android:name=".music.MusicPlaybackService"
-            android:exported="true"
-            android:foregroundServiceType="mediaPlayback">
-            <intent-filter>
-                <action android:name="androidx.media3.session.MediaSessionService" />
-            </intent-filter>
-        </service>
     </application>
 </manifest>

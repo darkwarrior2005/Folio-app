@@ -5,17 +5,14 @@ import okhttp3.Response
 import java.io.IOException
 
 /**
- * Wraps anything an extension's own interceptor throws that isn't an IOException (commonly a
- * LinkageError from an extension built against a newer/older API than this app ships) as an
- * IOException, so it fails the request cleanly instead of crashing the app.
+ * Rethrows anything a later interceptor throws as an IOException, so a misbehaving source
+ * cannot bring the app down. Keep it first in the chain.
  */
 class UncaughtExceptionInterceptor : Interceptor {
-    override fun intercept(chain: Interceptor.Chain): Response {
-        return try {
-            chain.proceed(chain.request())
-        } catch (e: Exception) {
-            if (e is IOException) throw e
-            throw IOException(e)
-        }
+
+    override fun intercept(chain: Interceptor.Chain): Response = try {
+        chain.proceed(chain.request())
+    } catch (e: Exception) {
+        if (e is IOException) throw e else throw IOException(e)
     }
 }

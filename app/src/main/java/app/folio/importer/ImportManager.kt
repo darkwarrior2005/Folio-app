@@ -16,9 +16,7 @@ import app.folio.data.settings.ImportMode
 import app.folio.data.settings.SettingsRepository
 import app.folio.reader.ReaderRegistry
 import app.folio.reader.api.BookSource
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -76,6 +74,8 @@ class ImportManager(
         val forceCopy: Boolean,
         val skipDuplicateCheck: Boolean = false,
         val replaceBookId: Long? = null,
+        /** Told the new book's id, or null when the file was not imported. */
+        val onDone: ((Long?) -> Unit)? = null,
     )
 
     private val queue = Channel<Job>(Channel.UNLIMITED)
@@ -93,22 +93,6 @@ class ImportManager(
     private var failed = 0
     private var skipped = 0
 
-    private val ownImportWaiters = mutableMapOf<String, CompletableDeferred<Long?>>()
-
-    /**
-     * Imports [uri] as a copy Folio owns (From the web's saved pages/feed items/novel chapters),
-     * skipping the duplicate check, and resolves once that one file has gone through the queue -
-     * other callers only see it through [events] like any other import.
-     */
-    fun importOwn(uri: String): Deferred<Long?> {
-        val deferred = CompletableDeferred<Long?>()
-        ownImportWaiters[uri] = deferred
-        _progress.value = _progress.value.copy(running = true, total = _progress.value.total + 1)
-        queue.trySend(Job(uri, forceCopy = true, skipDuplicateCheck = true))
-        ensureWorker()
-        return deferred
-    }
-
     fun enqueue(uris: List<String>, forceCopy: Boolean = false) {
         if (uris.isEmpty()) return
         _progress.value = _progress.value.copy(
@@ -117,6 +101,18 @@ class ImportManager(
         )
         uris.forEach { uri -> queue.trySend(Job(uri, forceCopy)) }
         ensureWorker()
+    }
+
+    /**
+     * Imports a file Folio made itself (a saved web page or web novel) as a copy it owns, and
+     * returns the new book's id, or null when it could not be imported.
+     */
+    suspend fun importOwn(uri: String): Long? {
+        val done = kotlinx.coroutines.CompletableDeferred<Long?>()
+        _progress.value = _progress.value.copy(running = true, total = _progress.value.total + 1)
+        queue.trySend(Job(uri, forceCopy = true, skipDuplicateCheck = true, onDone = { done.complete(it) }))
+        ensureWorker()
+        return done.await()
     }
 
     /** Import every supported file inside a folder the user picked. */
@@ -153,35 +149,42 @@ class ImportManager(
     private fun ensureWorker() {
         if (worker?.isActive == true) return
         worker = scope.launch {
-            while (true) {
-                val job = queue.tryReceive().getOrNull() ?: break
-                _progress.value = _progress.value.copy(
-                    currentName = files.info(job.uri)?.name,
-                )
-                runCatching { process(job) }
-                ownImportWaiters.remove(job.uri)?.complete(null) // still pending means process() didn't reach success
-                _progress.value = _progress.value.copy(completed = _progress.value.completed + 1)
+            // Checked again after each batch, so a file queued while a batch was finishing is not
+            // left waiting (importOwn waits for its answer).
+            var job = queue.tryReceive().getOrNull()
+            while (job != null) {
+                while (job != null) {
+                    val current: Job = job
+                    _progress.value = _progress.value.copy(
+                        currentName = files.info(current.uri)?.name,
+                    )
+                    val bookId = runCatching { process(current) }.getOrNull()
+                    current.onDone?.invoke(bookId)
+                    _progress.value = _progress.value.copy(completed = _progress.value.completed + 1)
+                    job = queue.tryReceive().getOrNull()
+                }
+                _events.emit(ImportEvent.Finished(imported, failed, skipped))
+                _progress.value = ImportProgress()
+                imported = 0
+                failed = 0
+                skipped = 0
+                job = queue.tryReceive().getOrNull()
             }
-            _events.emit(ImportEvent.Finished(imported, failed, skipped))
-            _progress.value = ImportProgress()
-            imported = 0
-            failed = 0
-            skipped = 0
         }
     }
 
-    private suspend fun process(job: Job) {
+    private suspend fun process(job: Job): Long? {
         val info = files.info(job.uri) ?: run {
             failed++
             _events.emit(ImportEvent.Failed(job.uri.substringAfterLast('/'), ImportFailure.UNREADABLE))
-            return
+            return null
         }
 
         val format = FormatDetector.detect(files, job.uri, info.name, info.mimeType, info.isDirectory)
         if (format == null || !registry.supports(format)) {
             failed++
             _events.emit(ImportEvent.Failed(info.name, ImportFailure.UNSUPPORTED))
-            return
+            return null
         }
 
         val appSettings = settings.current()
@@ -196,7 +199,7 @@ class ImportManager(
             if (copied == null) {
                 failed++
                 _events.emit(ImportEvent.Failed(info.name, ImportFailure.PERMISSION))
-                return
+                return null
             }
             workingUri = Uri.fromFile(copied).toString()
             storage = StorageMode.COPIED
@@ -211,7 +214,7 @@ class ImportManager(
             files.openInput(workingUri)?.use { Hashing.quickHash(it, size) } ?: run {
                 failed++
                 _events.emit(ImportEvent.Failed(info.name, ImportFailure.UNREADABLE))
-                return
+                return null
             }
         }
 
@@ -225,7 +228,7 @@ class ImportManager(
                         PendingDuplicate(token, job.uri, info.name, existing.id, existing.displayTitle),
                     ),
                 )
-                return
+                return null
             }
         }
 
@@ -236,7 +239,7 @@ class ImportManager(
         if (extracted == null && extractor != null) {
             failed++
             _events.emit(ImportEvent.Failed(info.name, ImportFailure.CORRUPTED))
-            return
+            return null
         }
 
         val newBook = NewBook(
@@ -275,8 +278,8 @@ class ImportManager(
         }
 
         imported++
-        ownImportWaiters.remove(job.uri)?.complete(bookId)
         _events.emit(ImportEvent.Imported(bookId, newBook.imported.title ?: info.name))
+        return bookId
     }
 
     private fun holdsPermission(uri: String): Boolean =

@@ -4,9 +4,6 @@ import android.content.Context
 import eu.kanade.tachiyomi.network.interceptor.CloudflareInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UncaughtExceptionInterceptor
 import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import okhttp3.Cache
 import okhttp3.OkHttpClient
 import java.io.File
@@ -14,20 +11,19 @@ import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 
 /**
- * One shared OkHttp stack for every manga source. [MangaSourceModule] is the only thing that
- * constructs this (through Injekt), so every source sees the same cookie jar and interceptors.
+ * The HTTP client shared by every source. Extensions reach it through Injekt, so the type and
+ * member names have to stay as the extensions-lib declares them.
  *
- * Keiyoushi's base `HttpSource` class refuses to load unless the client's interceptors include
- * ones literally named `UncaughtExceptionInterceptor`, `UserAgentInterceptor` and
- * `CloudflareInterceptor` (added in [client] by the caller, see [MangaSourceModule]) - keep those
- * class names exactly as they are.
+ * Unlike Mihon this has no DNS-over-HTTPS options.
  */
-class NetworkHelper(private val context: Context, private val userAgentProvider: () -> String) {
+class NetworkHelper(
+    context: Context,
+    private val userAgentProvider: () -> String,
+) {
 
     val cookieJar = AndroidCookieJar()
 
-    /** The base client; callers add the Cloudflare interceptor last so it sees 403s and retries. */
-    fun baseClientBuilder(): OkHttpClient.Builder = OkHttpClient.Builder()
+    val client: OkHttpClient = OkHttpClient.Builder()
         .cookieJar(cookieJar)
         .connectTimeout(30.seconds)
         .readTimeout(30.seconds)
@@ -39,21 +35,22 @@ class NetworkHelper(private val context: Context, private val userAgentProvider:
             ),
         )
         .addInterceptor(UncaughtExceptionInterceptor())
-        .addInterceptor(UserAgentInterceptor(userAgentProvider))
+        .addInterceptor(UserAgentInterceptor(::defaultUserAgentProvider))
+        .addInterceptor(CloudflareInterceptor(context, cookieJar, ::defaultUserAgentProvider))
+        .build()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    /**
+     * @deprecated since extensions-lib 1.5; the regular client is used instead.
+     */
+    @Deprecated("The regular client is used instead")
+    @Suppress("UNUSED")
+    val cloudflareClient: OkHttpClient = client
 
-    val client: OkHttpClient by lazy {
-        baseClientBuilder()
-            .addInterceptor(CloudflareInterceptor(context, cookieJar, scope, userAgentProvider))
-            .build()
-    }
-
-    fun defaultUserAgentProvider(): String = userAgentProvider()
+    fun defaultUserAgentProvider(): String = userAgentProvider().trim()
 
     companion object {
         const val DEFAULT_USER_AGENT =
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
-                "(KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) " +
+                "Chrome/138.0.0.0 Safari/537.36"
     }
 }

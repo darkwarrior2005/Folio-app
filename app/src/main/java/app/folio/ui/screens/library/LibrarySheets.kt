@@ -16,18 +16,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.MenuBook
-import androidx.compose.material.icons.rounded.PlaylistAdd
-import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.Undo
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -51,11 +39,15 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.folio.R
 import app.folio.core.model.BookFormat
+import app.folio.core.model.BookSort
 import app.folio.core.model.LibraryBook
+import app.folio.core.model.LibraryGrouping
+import app.folio.core.model.LibraryLayout
 import app.folio.core.model.ReadingStatus
 import app.folio.ui.components.ConfirmDialog
 import app.folio.ui.components.FolioChip
 import app.folio.ui.components.TextInputDialog
+import app.folio.ui.icons.FolioIcons
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,42 +77,42 @@ fun BookActionSheet(
             )
             HorizontalDivider()
 
-            SheetAction(Icons.Rounded.MenuBook, stringResource(R.string.action_read), onClick = onOpen)
-            SheetAction(Icons.Rounded.Info, stringResource(R.string.book_details), onClick = onDetails)
+            SheetAction(FolioIcons.MenuBook, stringResource(R.string.action_read), onClick = onOpen)
+            SheetAction(FolioIcons.Info, stringResource(R.string.book_details), onClick = onDetails)
             SheetAction(
-                icon = Icons.Rounded.Star,
+                icon = FolioIcons.Star,
                 label = stringResource(if (book.favorite) R.string.action_unfavorite else R.string.action_favorite),
             ) {
                 viewModel.toggleFavorite(book)
                 onDismiss()
             }
-            SheetAction(Icons.Rounded.Bookmark, stringResource(R.string.action_add_tag)) { showTagInput = true }
-            SheetAction(Icons.Rounded.Folder, stringResource(R.string.action_add_to_collection)) {
+            SheetAction(FolioIcons.Bookmark, stringResource(R.string.action_add_tag)) { showTagInput = true }
+            SheetAction(FolioIcons.Folder, stringResource(R.string.action_add_to_collection)) {
                 showCollections = true
             }
-            SheetAction(Icons.Rounded.PlaylistAdd, stringResource(R.string.action_add_to_queue)) {
+            SheetAction(FolioIcons.PlaylistAdd, stringResource(R.string.action_add_to_queue)) {
                 viewModel.enqueue(book.id)
                 onDismiss()
             }
             if (book.status == ReadingStatus.FINISHED) {
-                SheetAction(Icons.Rounded.Undo, stringResource(R.string.action_mark_unread)) {
+                SheetAction(FolioIcons.Undo, stringResource(R.string.action_mark_unread)) {
                     viewModel.setStatus(book.id, ReadingStatus.UNREAD)
                     onDismiss()
                 }
             } else {
-                SheetAction(Icons.Rounded.CheckCircle, stringResource(R.string.action_mark_finished)) {
+                SheetAction(FolioIcons.CheckCircle, stringResource(R.string.action_mark_finished)) {
                     viewModel.setStatus(book.id, ReadingStatus.FINISHED)
                     onDismiss()
                 }
             }
-            SheetAction(Icons.Rounded.Edit, stringResource(R.string.action_edit), onClick = onDetails)
-            SheetAction(Icons.Rounded.Share, stringResource(R.string.action_share)) {
+            SheetAction(FolioIcons.Edit, stringResource(R.string.action_edit), onClick = onDetails)
+            SheetAction(FolioIcons.Share, stringResource(R.string.action_share)) {
                 shareBook(context, book)
                 onDismiss()
             }
             HorizontalDivider()
             SheetAction(
-                icon = Icons.Rounded.Delete,
+                icon = FolioIcons.Delete,
                 label = stringResource(R.string.action_remove_from_library),
                 destructive = true,
             ) { confirmRemove = true }
@@ -198,30 +190,30 @@ fun BulkActionSheet(viewModel: LibraryViewModel, onDismiss: () -> Unit) {
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
             )
             HorizontalDivider()
-            SheetAction(Icons.Rounded.Bookmark, stringResource(R.string.action_add_tag)) { showTagInput = true }
-            SheetAction(Icons.Rounded.Folder, stringResource(R.string.action_add_to_collection)) {
+            SheetAction(FolioIcons.Bookmark, stringResource(R.string.action_add_tag)) { showTagInput = true }
+            SheetAction(FolioIcons.Folder, stringResource(R.string.action_add_to_collection)) {
                 showCollections = true
             }
-            SheetAction(Icons.Rounded.Edit, stringResource(R.string.filter_category)) { showCategories = true }
-            SheetAction(Icons.Rounded.Star, stringResource(R.string.action_favorite)) {
+            SheetAction(FolioIcons.Edit, stringResource(R.string.filter_category)) { showCategories = true }
+            SheetAction(FolioIcons.Star, stringResource(R.string.action_favorite)) {
                 viewModel.setFavoriteForSelection(true)
                 onDismiss()
             }
-            SheetAction(Icons.Rounded.CheckCircle, stringResource(R.string.action_mark_finished)) {
+            SheetAction(FolioIcons.CheckCircle, stringResource(R.string.action_mark_finished)) {
                 viewModel.setStatusForSelection(ReadingStatus.FINISHED)
                 onDismiss()
             }
-            SheetAction(Icons.Rounded.Undo, stringResource(R.string.action_mark_unread)) {
+            SheetAction(FolioIcons.Undo, stringResource(R.string.action_mark_unread)) {
                 viewModel.setStatusForSelection(ReadingStatus.UNREAD)
                 onDismiss()
             }
-            SheetAction(Icons.Rounded.PlaylistAdd, stringResource(R.string.action_add_to_queue)) {
+            SheetAction(FolioIcons.PlaylistAdd, stringResource(R.string.action_add_to_queue)) {
                 viewModel.queueSelection()
                 onDismiss()
             }
             HorizontalDivider()
             SheetAction(
-                icon = Icons.Rounded.Delete,
+                icon = FolioIcons.Delete,
                 label = stringResource(R.string.action_remove_from_library),
                 destructive = true,
             ) { confirmRemove = true }
@@ -406,6 +398,59 @@ fun LibraryFilterSheet(
                 TextButton(onClick = onOpenCollections) { Text(stringResource(R.string.collections_title)) }
                 TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_done)) }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun DisplayOptionsSheet(viewModel: LibraryViewModel, onDismiss: () -> Unit) {
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp),
+        ) {
+            FilterGroup(stringResource(R.string.library_sort)) {
+                BookSort.entries.forEach { sort ->
+                    val selected = settings.library.sort == sort
+                    FolioChip(
+                        label = if (selected) {
+                            "${sort.label()} ${if (settings.library.sortAscending) "↑" else "↓"}"
+                        } else {
+                            sort.label()
+                        },
+                        selected = selected,
+                        onClick = { viewModel.setSort(sort) },
+                    )
+                }
+            }
+
+            FilterGroup(stringResource(R.string.library_layout)) {
+                LibraryLayout.entries.forEach { layout ->
+                    FolioChip(
+                        label = layout.label(),
+                        selected = settings.library.layout == layout,
+                        onClick = { viewModel.setLayout(layout) },
+                    )
+                }
+            }
+
+            FilterGroup(stringResource(R.string.library_group)) {
+                LibraryGrouping.entries.forEach { grouping ->
+                    FolioChip(
+                        label = grouping.label(),
+                        selected = settings.library.grouping == grouping,
+                        onClick = { viewModel.setGrouping(grouping) },
+                    )
+                }
+            }
+
+            Spacer(Modifier.height(12.dp))
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_done)) }
         }
     }
 }

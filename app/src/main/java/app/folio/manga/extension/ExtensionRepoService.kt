@@ -1,161 +1,251 @@
 package app.folio.manga.extension
 
+import app.folio.data.db.ExtensionRepoEntity
+import app.folio.data.db.FolioDatabase
+import app.folio.manga.MangaAccess
+import app.folio.manga.extension.model.ContentWarning
+import app.folio.manga.extension.model.Extension
 import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import uy.kohesive.injekt.injectLazy
+import okhttp3.HttpUrl.Companion.toHttpUrl
 
-data class AvailableExtension(
-    val packageName: String,
-    val name: String,
-    val versionName: String,
-    val versionCode: Long,
-    val apkUrl: String,
-    val iconUrl: String?,
-    val lang: String,
-    val isNsfw: Boolean,
-    val repoBaseUrl: String,
-    val signingKeyFingerprint: String?,
-)
+/**
+ * Talks to the extension repositories the user added.
+ *
+ * Folio ships with none. A repository is a static site laid out the way the Tachiyomi and Mihon
+ * ecosystem expects:
+ *
+ *   <base>/repo.json       the repository's own name, website and signing key
+ *   <base>/index.min.json  the extensions it offers
+ *   <base>/apk/<file>.apk  the apks
+ *   <base>/icon/<pkg>.png  the icons
+ *
+ * Repositories built for Mihon 0.20.1+ instead name an `index_v2` in `repo.json` (a protobuf
+ * `index.pb`, see [RepoIndexV2]) that carries full apk and icon URLs, and leave only a
+ * placeholder in `index.min.json`.
+ *
+ * The signing key in `repo.json` is what makes adding a repository meaningful: every extension
+ * from it must be signed with that key, so adding the repository is the act of trusting its
+ * author, and individual extensions from it do not need approving one by one.
+ *
+ * Adapted from Mihon (Apache-2.0).
+ */
 
+/** The result of asking every repository for its extensions: what came back, and which repos didn't answer. */
 data class AvailableExtensionsResult(
-    val extensions: List<AvailableExtension>,
+    val extensions: List<Extension.Available>,
     val failedRepoNames: List<String>,
     val totalRepos: Int,
 )
 
-/** What a repository says about itself; stored when it's added. */
-data class RepoInfo(val name: String, val website: String?, val signingKeyFingerprint: String?)
+class ExtensionRepoService(
+    private val database: FolioDatabase,
+    private val network: NetworkHelper,
+    private val access: MangaAccess,
+) {
 
-@Serializable
-private data class RepoJson(
-    @SerialName("index_v2") val indexV2: String? = null,
-    val meta: RepoMeta? = null,
-)
+    private val dao get() = database.manga()
 
-@Serializable
-private data class RepoMeta(
-    val name: String = "",
-    val website: String = "",
-    val signingKeyFingerprint: String? = null,
-)
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        coerceInputValues = true
+    }
 
-@Serializable
-private data class MinJsonExtension(
-    val name: String = "",
-    val pkg: String = "",
-    val apk: String = "",
-    val lang: String = "",
-    val code: Long = 0,
-    val version: String = "",
-    val nsfw: Int = 0,
-    val icon: String = "",
-)
+    fun observeRepos(): Flow<List<ExtensionRepoEntity>> = dao.observeRepos()
+
+    suspend fun repos(): List<ExtensionRepoEntity> = dao.repos()
+
+    /**
+     * Fetches a repository's details and stores it. Accepts the base URL or any of the index
+     * URLs people copy (`index.min.json`, `index.pb`, `repo.json`).
+     */
+    suspend fun addRepo(url: String): Result<ExtensionRepoEntity> = withContext(Dispatchers.IO) {
+        try {
+            access.require()
+            val base = normalizeRepoBaseUrl(url)
+            val meta = fetchRepoMeta(base)
+
+            val repo = ExtensionRepoEntity(
+                baseUrl = base,
+                name = meta.meta.name,
+                shortName = meta.meta.shortName,
+                website = meta.meta.website,
+                signingKeyFingerprint = meta.meta.signingKeyFingerprint.lowercase(),
+                addedAt = System.currentTimeMillis(),
+            )
+            dao.upsertRepo(repo)
+            Result.success(repo)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun removeRepo(baseUrl: String) {
+        dao.deleteRepo(baseUrl)
+    }
+
+    /**
+     * Every extension offered by every repository the user added. A repository that cannot be
+     * reached is skipped rather than failing the whole list, but which ones (and how many of the
+     * total) is reported back instead of being silently swallowed.
+     */
+    suspend fun availableExtensions(): AvailableExtensionsResult = withContext(Dispatchers.IO) {
+        access.require()
+        val repos = dao.repos()
+        val extensions = mutableListOf<Extension.Available>()
+        val failed = mutableListOf<String>()
+        repos.forEach { repo ->
+            try {
+                extensions += fetchExtensions(repo)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                failed += repo.name
+            }
+        }
+        AvailableExtensionsResult(extensions = extensions, failedRepoNames = failed, totalRepos = repos.size)
+    }
+
+    /**
+     * `repo.json` is read on every refresh rather than once when the repository is added, so a
+     * repository that moves to the newer index format is picked up without being re-added.
+     */
+    private suspend fun fetchExtensions(repo: ExtensionRepoEntity): List<Extension.Available> {
+        val base = repo.baseUrl
+        val indexV2 = fetchRepoMeta(base).indexV2?.takeIf { it.isNotBlank() }
+        return if (indexV2 != null) {
+            val url = "$base/repo.json".toHttpUrl().resolve(indexV2)
+                ?: error("${repo.name} names an index that is not a valid URL: $indexV2")
+            val bytes = network.client.newCall(GET(url.toString())).awaitSuccess().body.use { it.bytes() }
+            RepoIndexV2.decode(bytes).map { it.toAvailable(repo) }
+        } else {
+            val response = network.client.newCall(GET("$base/index.min.json")).awaitSuccess()
+            val entries = response.body.use { json.decodeFromString<List<IndexEntry>>(it.string()) }
+            entries.map { it.toAvailable(repo) }
+        }
+    }
+
+    private suspend fun fetchRepoMeta(base: String): RepoMeta {
+        val response = network.client.newCall(GET("$base/repo.json")).awaitSuccess()
+        return response.body.use { json.decodeFromString<RepoMeta>(it.string()) }
+    }
+
+    private fun RepoIndexV2.Entry.toAvailable(repo: ExtensionRepoEntity): Extension.Available =
+        Extension.Available(
+            name = name.substringAfter("Tachiyomi: "),
+            pkgName = pkgName,
+            versionName = versionName,
+            versionCode = versionCode,
+            libVersion = libVersion.toDoubleOrNull() ?: versionName.substringBeforeLast('.').toDoubleOrNull(),
+            lang = extensionLang(pkgName, sources.map { it.lang }),
+            contentWarning = when (contentRating) {
+                2 -> ContentWarning.MIXED
+                3 -> ContentWarning.NSFW
+                else -> ContentWarning.SAFE
+            },
+            apkUrl = apkUrl,
+            iconUrl = iconUrl,
+            repoUrl = repo.baseUrl,
+            repoSigningKey = repo.signingKeyFingerprint,
+            sources = sources.map {
+                Extension.AvailableSource(id = it.id, lang = it.lang, name = it.name, baseUrl = it.baseUrl)
+            },
+        )
+
+    @Serializable
+    private data class RepoMeta(
+        val meta: Meta,
+        @SerialName("index_v2") val indexV2: String? = null,
+    ) {
+        @Serializable
+        data class Meta(
+            val name: String,
+            val shortName: String? = null,
+            val website: String = "",
+            val signingKeyFingerprint: String,
+        )
+    }
+
+    /** One entry of `index.min.json`. */
+    @Serializable
+    private data class IndexEntry(
+        val name: String,
+        val pkg: String,
+        val apk: String,
+        val lang: String,
+        val code: Long,
+        val version: String,
+        val nsfw: Int = 0,
+        @SerialName("sources") val sources: List<IndexSource>? = null,
+    ) {
+        fun toAvailable(repo: ExtensionRepoEntity): Extension.Available = Extension.Available(
+            name = name.substringAfter("Tachiyomi: "),
+            pkgName = pkg,
+            versionName = version,
+            versionCode = code,
+            libVersion = version.substringBeforeLast('.').toDoubleOrNull(),
+            lang = lang,
+            contentWarning = if (nsfw == 1) ContentWarning.NSFW else ContentWarning.SAFE,
+            apkUrl = "${repo.baseUrl}/apk/$apk",
+            iconUrl = "${repo.baseUrl}/icon/$pkg.png",
+            repoUrl = repo.baseUrl,
+            repoSigningKey = repo.signingKeyFingerprint,
+            sources = sources.orEmpty().map {
+                Extension.AvailableSource(id = it.id, lang = it.lang, name = it.name, baseUrl = it.baseUrl)
+            },
+        )
+    }
+
+    @Serializable
+    private data class IndexSource(
+        val id: Long,
+        val lang: String,
+        val name: String,
+        val baseUrl: String = "",
+    )
+}
+
+/** Turns whatever the user pasted into the repository's base URL. */
+internal fun normalizeRepoBaseUrl(url: String): String {
+    val trimmed = url.trim().removeSuffix("/")
+    require(trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+        "A repository URL has to start with http:// or https://"
+    }
+    val withoutFile = REPO_FILES.firstOrNull { trimmed.endsWith("/$it") }
+        ?.let { trimmed.removeSuffix("/$it") }
+        ?: trimmed
+    return withoutFile.removeSuffix("/")
+}
+
+private val REPO_FILES = listOf("index.min.json", "index.json", "index.pb", "repo.json")
 
 /**
- * Normalizes a pasted `index.pb`, `index.json` or `repo.json` address to the repository's base
- * URL (the folder those files live in).
+ * The newer index has no per-extension language, so it is worked out the way [ExtensionLoader]
+ * does for an installed extension: its sources' language, or "all" when they differ. A package
+ * without sources falls back to the language in its name, `eu.kanade.tachiyomi.extension.<lang>.<name>`.
  */
-fun normalizeRepoUrl(input: String): String {
-    val trimmed = input.trim().trimEnd('/')
-    return trimmed.removeSuffix("/index.pb").removeSuffix("/index.min.json")
-        .removeSuffix("/index.json").removeSuffix("/repo.json")
+internal fun extensionLang(pkgName: String, sourceLangs: List<String>): String {
+    val distinct = sourceLangs.filter { it.isNotBlank() }.distinct()
+    return when (distinct.size) {
+        0 -> pkgName.takeIf { it.startsWith(EXTENSION_PACKAGE_PREFIX) }
+            ?.split('.')
+            ?.takeIf { it.size >= 6 }
+            ?.let { it[it.size - 2] }
+            .orEmpty()
+        1 -> distinct.single()
+        else -> "all"
+    }
 }
 
-class ExtensionRepoService {
-
-    private val network: NetworkHelper by injectLazy()
-    private val json: Json by injectLazy()
-
-    suspend fun fetchAll(repoBaseUrls: List<String>): AvailableExtensionsResult {
-        val failed = mutableListOf<String>()
-        val extensions = mutableListOf<AvailableExtension>()
-        for (baseUrl in repoBaseUrls) {
-            try {
-                extensions += fetchOne(baseUrl)
-            } catch (_: Exception) {
-                failed += baseUrl
-            }
-        }
-        return AvailableExtensionsResult(extensions, failed, repoBaseUrls.size)
-    }
-
-    /** The repository's name and signing key, from repo.json or else its index.pb header. */
-    suspend fun fetchInfo(baseUrl: String): RepoInfo? {
-        val repoJson = fetchRepoJson(baseUrl)
-        val meta = repoJson?.meta
-        if (meta != null && meta.name.isNotBlank()) {
-            return RepoInfo(meta.name, meta.website.ifBlank { null }, meta.signingKeyFingerprint)
-        }
-        val index = runCatching { fetchIndexV2(baseUrl, repoJson?.indexV2) }.getOrNull() ?: return null
-        return RepoInfo(index.name, index.website.ifBlank { null }, index.signingKeyFingerprint.ifBlank { null })
-    }
-
-    private suspend fun fetchOne(baseUrl: String): List<AvailableExtension> {
-        val repoJson = fetchRepoJson(baseUrl)
-
-        val index = runCatching { fetchIndexV2(baseUrl, repoJson?.indexV2) }
-        index.getOrNull()?.let { v2 ->
-            val fingerprint = repoJson?.meta?.signingKeyFingerprint ?: v2.signingKeyFingerprint.ifBlank { null }
-            return v2.extensions.map { it.toAvailableExtension(baseUrl, fingerprint) }
-        }
-        // A repository that publishes index_v2 keeps only "update your app" placeholders in its
-        // legacy index, so falling back would show those as if they were real extensions.
-        if (repoJson?.indexV2 != null) throw index.exceptionOrNull() ?: IllegalStateException("index_v2 failed")
-
-        val response = network.client.newCall(GET("$baseUrl/index.min.json")).awaitSuccess()
-        val list = json.decodeFromString<List<MinJsonExtension>>(response.body.string())
-        val fingerprint = repoJson?.meta?.signingKeyFingerprint
-        return list.filter { it.pkg.isNotBlank() && it.apk.isNotBlank() }.map {
-            AvailableExtension(
-                packageName = it.pkg,
-                name = it.name.removePrefix("Tachiyomi: "),
-                versionName = it.version,
-                versionCode = it.code,
-                apkUrl = "$baseUrl/apk/${it.apk}",
-                iconUrl = "$baseUrl/icon/${it.pkg}.png",
-                lang = it.lang,
-                isNsfw = it.nsfw == 1,
-                repoBaseUrl = baseUrl,
-                signingKeyFingerprint = fingerprint,
-            )
-        }
-    }
-
-    /** Tries the address repo.json declares, then index.pb next to it. */
-    private suspend fun fetchIndexV2(baseUrl: String, declared: String?): RepoIndexV2.Index {
-        val candidates = listOfNotNull(declared, "$baseUrl/index.pb").distinct()
-        var lastError: Exception? = null
-        for (url in candidates) {
-            try {
-                val bytes = network.client.newCall(GET(url)).awaitSuccess().use { it.body.bytes() }
-                return RepoIndexV2.decode(bytes)
-            } catch (e: Exception) {
-                lastError = e
-            }
-        }
-        throw lastError ?: IllegalStateException("No index")
-    }
-
-    private suspend fun fetchRepoJson(baseUrl: String): RepoJson? = runCatching {
-        val response = network.client.newCall(GET("$baseUrl/repo.json")).awaitSuccess()
-        json.decodeFromString<RepoJson>(response.use { it.body.string() })
-    }.getOrNull()
-}
-
-private fun RepoIndexV2.Extension.toAvailableExtension(repoBaseUrl: String, fingerprint: String?) =
-    AvailableExtension(
-        packageName = pkg,
-        name = name.removePrefix("Tachiyomi: "),
-        versionName = versionName,
-        versionCode = versionCode,
-        apkUrl = apkUrl,
-        iconUrl = iconUrl.ifBlank { null },
-        lang = lang,
-        isNsfw = isNsfw,
-        repoBaseUrl = repoBaseUrl,
-        signingKeyFingerprint = fingerprint,
-    )
+private const val EXTENSION_PACKAGE_PREFIX = "eu.kanade.tachiyomi.extension."

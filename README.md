@@ -1,113 +1,28 @@
 # Folio
 
-> 🤖 **Made with AI.** Folio was designed and written entirely with AI, using
-> [Claude Code](https://claude.ai/code) (Anthropic). The code, the tests, the build setup, the release
-> workflow and this README were all produced by AI from the owner's instructions.
+An offline-first personal reading library for Android: e-books, PDFs, research papers, manga and
+comics in one place, with reading progress, annotations, organisation, statistics and a Pomodoro
+timer — all stored on the device.
 
-Folio is an **offline-first personal reading library for Android**. It keeps your e-books, PDFs,
-research papers, manga, comics and plain-text documents in one place, and adds the things a serious
-reader wants around them: reading progress that is never lost, highlights and notes, drawing on
-pages, organisation with collections and tags, reading statistics, a Pomodoro focus timer and even
-background music that plays while you read — all stored on your own device.
+**Offline by default.** Books, PDFs, comics, music, notes and statistics never touch the network.
+The only parts that do are the optional manga sources and "From the web" features (below), which
+both start switched off; until you turn one on Folio opens no connection. No account, no server, no analytics, no crash
+reporting, and Android backup is disabled.
 
-## Purpose
-
-Most reading apps handle one format well, need an account, or send your reading habits to a server.
-Folio exists to be the opposite:
-
-- **One app for everything you read** — novels (EPUB), papers and documents (PDF), manga and comics
-  (CBZ/CBR/image folders) and notes (TXT/Markdown/HTML) share one library, one search and one set of
-  annotations.
-- **Offline by default** — no account, no cloud, no analytics, no ads. Folio's book library never
-  touches the network. The only two features that do - manga sources (extensions) and From the web
-  (saved pages, feeds, web novels) - are each off until you turn them on in Settings, and every
-  network call in both checks that setting first.
-- **Built for focus** — a distraction-free reader, a Pomodoro timer, reading goals and streaks, and
-  a per-book soundtrack help you actually sit down and read.
-- **Your data stays yours** — everything can be backed up to a single ZIP file and restored on another
-  device, and annotations can be exported as Markdown.
-
-## Highlights
-
-| | |
-| --- | --- |
-| 📚 **Many formats** | PDF, EPUB, CBZ, CBR, image folders, images, TXT, Markdown, HTML |
-| 🗂️ **Organisation** | Categories, ordered collections, tags, smart collections, reading queue, favourites |
-| 🏠 **Bookshelf home** | Your collections shown as real shelves with covers and spines |
-| 🖍️ **Annotations** | Bookmarks, five highlight colours, notes, a notes hub, Markdown export |
-| ✏️ **Scribble** | Pen, highlighter and eraser on PDF and comic pages, with undo/redo |
-| 🔍 **Search** | Library metadata, full text inside books, and your notes |
-| 🎵 **Reading music** | Offline music player; link playlists to books or whole collections |
-| ⏱️ **Pomodoro** | Focus timer that survives the app being killed, with recorded sessions |
-| 📊 **Statistics** | Reading sessions, streaks, goals and per-book stats |
-| 🎨 **Themes** | 17 themes, custom accent colour, bundled reading fonts |
-| 🔒 **Privacy** | Offline by default, optional PIN/biometric lock, hide from recent apps, incognito keyboard, forget browsing on each start |
-| 💾 **Backup** | ZIP backup and restore, optionally including the book files |
-| 🗜️ **More formats** | MOBI, AZW3, FB2, DOCX, ODT, RTF — converted to the text reader on import |
-| 🈂️ **Manga** | Load the same extensions Mihon/Tachiyomi use, browse and search sources, download chapters for offline reading, and bypass a Cloudflare check automatically or with one tap ("Open the site") |
-| 🌐 **From the web** | Save a page, follow an RSS/Atom feed, or read a web novel chapter by chapter — all turned into ordinary offline books |
-| 🌙 **Night light** | A scheduled warm/dim screen tint, with a gentle bedtime reminder |
-| 📖 **Reading comfort** | A reading ruler, page-turn sound/haptics, dictionary look-up, and shareable quote cards |
-
-## Requirements
-
-### To use the app
-
-- An Android phone, tablet or foldable running **Android 8.0 (API 26) or newer**
-  (the app targets Android API 36).
-- Enough free storage for your books, music and covers. Books are opened in place through Android's
-  file picker, so they are not copied unless you choose to include them in a backup.
-- **No account, ever.** An Internet connection is only needed if you turn on manga sources or
-  From the web; the rest of the app works fully offline.
-
-### Permissions it asks for
-
-| Permission | Why |
-| --- | --- |
-| Notifications | Pomodoro timer, reading reminders, music playback controls, chapter downloads |
-| Foreground service (special use, media playback) | Keeps the timer, music and chapter downloads running when the app is in the background |
-| Wake lock, vibrate | Timer alerts, uninterrupted playback, page-turn haptics |
-| Biometric | Optional fingerprint/face unlock for the app lock and the Extensions screen |
-| Internet, network state | Only used by manga sources and From the web, both off by default |
-| Install/uninstall packages, see installed apps | How manga extensions (ordinary APKs) are added and removed; this also means Folio can't be distributed through the Play Store |
-
-Files are accessed only through the Storage Access Framework, i.e. only the files and folders you
-pick yourself.
-
-### To build it from source
-
-- **JDK 17 or newer** (Android Studio's bundled JDK works; CI uses JDK 21).
-- **Android SDK with API 37** (Readium and PDFium require compiling against it).
-- A `local.properties` file pointing at the SDK (Android Studio creates it for you).
-- Optional, for signed release builds: a `keystore.properties` file (git-ignored) with `storeFile`,
-  `storePassword`, `keyAlias` and `keyPassword`.
-
-## Getting started
-
-Build a debug APK:
+## Building
 
 ```bash
 ./gradlew :app:assembleDebug
 ```
 
-Install it on a connected device:
+Requires a JDK 17+ (Android Studio's bundled JDK works) and an Android SDK with API 37.
+`local.properties` points at the SDK.
+
+Install on a connected device:
 
 ```bash
 ./gradlew :app:installDebug
 ```
-
-Then open Folio, tap import, and pick files or a whole folder. Covers and metadata are extracted in
-the background; you can start reading straight away.
-
-### Release builds
-
-The **Release APK** GitHub Actions workflow (`.github/workflows/release.yml`) builds a signed APK:
-
-- Run it manually from *Actions → Release APK → Run workflow*; the APK is attached to the run.
-- Push a tag such as `v1.5.0` and the APK is also published as a GitHub release.
-- Signing uses the repository secrets `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD`, `KEY_ALIAS` and
-  `KEY_PASSWORD`. Without them the workflow still builds a debug-signed APK. Use the same keystore
-  as the copy already on your phone, or Android will refuse the update.
 
 ## Technology
 
@@ -121,6 +36,8 @@ The **Release APK** GitHub Actions workflow (`.github/workflows/release.yml`) bu
 | Text | Custom WebView reader with its own CSS/JS | Full control over typography, pagination, highlights |
 | Background work | WorkManager | Resumable text indexing and reading reminders |
 | Settings | DataStore (a single JSON document) | Easy to back up and to extend |
+| Manga sources | Mihon/Tachiyomi extension API, OkHttp, Injekt, QuickJS | Runs the same extension APKs Mihon does, from the same repositories |
+| Manga pages | Android's decoder, then [`ca.mpreg:imagedecoder`](https://github.com/mpreg-ca/imagedecoder) | AVIF, JPEG XL and HEIF pages that phones often cannot decode themselves |
 
 ## Architecture
 
@@ -139,8 +56,14 @@ app/src/main/java/app/folio/
 │   ├── api/          ReaderEngine / ReaderHost / ReaderController contracts
 │   ├── epub/  pdf/  comic/  text/    One engine per format
 │   └── ReaderRegistry.kt             The only place that maps a format to an engine
+├── manga/            Source registry, extension loader/installer/repositories, downloads,
+│                     global search, chapter loader for streaming
 ├── pomodoro/         Timer engine, foreground service, notifications, reminders
 └── ui/               Compose theme, components, screens, navigation
+
+app/src/main/java/eu/kanade/tachiyomi/
+                      The extension API (source, network, util), under the package names
+                      extensions are compiled against, so Mihon extensions load unchanged
 ```
 
 Adding a format means writing one `ReaderEngine` and registering it. Progress, bookmarks,
@@ -160,9 +83,79 @@ the Readium locator for EPUB). It is written in one transaction together with th
 debounced while scrolling and flushed immediately when the reader leaves the foreground, so a
 force close or a dead battery cannot lose your place.
 
-## Features in detail
+## Manga sources and Mihon compatibility
 
-- **Formats:** PDF, EPUB, CBZ, CBR, image folders, single images, TXT, Markdown, HTML
+Folio can browse, search, read and download manga from online sources using **Mihon extensions**:
+the same APKs, from the same extension repositories (both `index.min.json` and Mihon 0.20+
+`index.pb` indexes). Extensions are written for Mihon's runtime, so Folio reproduces that runtime
+rather than inventing its own, and where Mihon decides what to do with a source's data, Folio uses
+Mihon's own code.
+
+**What Folio does exactly as Mihon does**
+
+| Step | How |
+| --- | --- |
+| Loading extensions | Extension lib 1.4 and 1.6, signature trust, the extension's own classes first (delegate-last class loader), source factories |
+| What extensions are given | Injekt with `Application`, `NetworkHelper`, the lenient `Json` Mihon provides (`explicitNulls = false`), `ProtoBuf`, `JavaScriptEngine` (QuickJS), `AppInfo`, per-source `SharedPreferences` |
+| Network | Same timeouts, 5 MiB response cache, cookie jar shared with WebView, user-agent interceptor, Cloudflare interceptor with matching WebView client hints |
+| Chapter lists | Mihon's sync rules: an empty list is refused rather than wiping your chapters, duplicate URLs are dropped, names are cleaned (`ChapterSanitizer`), missing chapter numbers are recognised from the names (`ChapterRecognition`, ported with Mihon's 47 tests), undated chapters get a sensible date, a chapter back under a new URL keeps its read and bookmark marks, and `prepareNewChapter` is called |
+| Manga details | Empty fields never overwrite stored ones; the source's `memo` is stored and handed back |
+| Pages | Image links resolved when missing or empty, several pages fetched ahead in parallel |
+| Covers | Fetched through the source's own client and headers, so sites that block outside image requests still show them |
+| Source settings | The extension's own settings screen (`ConfigurableSource`), opened from Browse, the catalogue or the installed extension |
+| Sites that need a person | "Open the site" opens the source's website with the same user agent and cookies, so a Cloudflare check, a captcha or a login done there carries over |
+
+**What Folio adds on top**, none of which changes how extension data is handled:
+
+- One search across every installed source from the Library's Manga tab, with sources you can
+  leave out, a per-source "Try again" and "Open the site"
+- A language picker that filters extensions, Browse and that search
+- An on/off switch per installed extension, and a fingerprint or screen-lock check before the
+  Extensions screen opens
+- Chapter multi-select and downloads by rule (next N unread, unread, a number range)
+- Readable errors: a failing page or chapter says why, with Try again
+
+**Privacy**
+
+- Search terms are never saved, and search fields are not kept in saved app state.
+- An incognito keyboard (on by default) asks the keyboard not to learn from anything typed in Folio.
+- On each start (on by default) Folio forgets the browsing trail: manga only looked at, cached site
+  responses and cached covers. Your library and downloads stay.
+- The "Open the site" browser clears its cache, history, form data and site storage when it
+  closes, keeping only cookies (they hold a passed Cloudflare check). Settings → Privacy and lock →
+  "Clear browsing data now" can also sign you out of every source website.
+
+**When a source fails**
+
+1. Read the message: Folio shows the source's own error.
+2. If it mentions WebView, cookies, a captcha or a login, or the site refused the request, tap
+   **Open the site**, complete what it asks, and go back. The source tries again by itself.
+3. Check the source's settings (the gear icon), and update the extension from the Extensions
+   screen: sites change, and extension updates follow.
+4. If it still fails, report the full error text.
+
+## From the web
+
+Optional, off until turned on (Library → + → From the web). Everything it fetches becomes an
+ordinary book in the library and is read offline afterwards.
+
+- **Pages:** paste or share a link from the browser; Folio keeps the readable part (text,
+  headings, pictures, embedded in the book) and drops menus, comments, share bars and adverts.
+- **Feeds:** RSS and Atom, added by the feed's address or the site's; checked only when opened.
+  "Save and read" turns an item into a book.
+- **Web novels:** give a chapter's address; that chapter and the next ten become one book, found
+  by following each chapter's "Next" link. "Check for new chapters" adds what has appeared since,
+  at the end of the same book, so your place, highlights and notes stay.
+
+It uses its own connection that keeps no cookies and no cache, separate from manga sources. Pages
+built entirely by scripts, and sites behind a login or a Cloudflare check, cannot be read this way.
+
+## Implemented
+
+- **Formats:** PDF, EPUB, CBZ, CBR, image folders, single images, TXT, Markdown, HTML, and —
+  converted on the phone for the text reader — Kindle MOBI / AZW / AZW3 without DRM, FB2 (also
+  zipped), Word DOCX, OpenDocument ODT and RTF, with their pictures, headings (for the table of
+  contents), title, author and cover
 - **Import:** multi-file, folder scan, "Open with", share-to-app, duplicate detection by content
   hash, background metadata and cover extraction
 - **Library:** 5 layouts, grouping, combinable filters, sorting, bulk editing, long-press actions,
@@ -186,7 +179,18 @@ force close or a dead battery cannot lose your place.
   plays while you read it; give a whole book collection a soundtrack that its books play unless they
   have music of their own; set all of this, and make new playlists, from "Reading music" on the home
   player; pauses during Pomodoro breaks
-- **Annotations:** bookmarks, five highlight colours, notes, a global notes hub, Markdown export
+- **Annotations:** bookmarks, five highlight colours, notes, a global notes hub, Markdown export;
+  any highlight can be shared as a quote card (a picture of the passage on a cream page, made on
+  the phone)
+- **Reading comfort:** a reading ruler that dims all but a band of lines (drag its handle to move
+  it), an optional soft page-turn sound and gentle tick, and "Look up" on selected text, which
+  hands the word to the dictionary or translation app already on the phone (EPUB and text books
+  get the system's own Define and Translate)
+- **Night light:** a warm amber filter over the whole app, always on or on a schedule, with
+  warmth and extra dimming; an optional bedtime nudge that offers "10 more minutes" or "Good night"
+- **Cozy home:** a welcome-back card with Continue and "Surprise me" (a book from your queue or one
+  you have started), and a Continue reading home-screen widget
+- **Icons:** Folio's own hand-drawn icon set (sources in `docs/icons`)
 - **Scribble:** draw on PDF and comic pages with a pen, a see-through highlighter (adjustable
   opacity, 10–100 %) and a stroke eraser, with undo/redo. In EPUB and text books, Draw makes a
   drawing card pinned to your place; drawings appear in the Notes hub, backups and the Markdown
@@ -200,42 +204,44 @@ force close or a dead battery cannot lose your place.
   biometric lock, hide in recents), accessibility, backup/restore/reset
 - **Backup:** ZIP with `library.json` and covers, optional book files, restore with missing-file
   reporting
+- **From the web (optional):** saved pages, RSS/Atom feeds and web novels, as books
+- **Manga online (optional):** extension repositories, install/update/uninstall, per-extension
+  on/off and source settings, Browse and per-source search, search across all sources, languages,
+  details and chapter lists, streaming reader, downloads (queue, Wi-Fi only, CBZ with
+  ComicInfo.xml, read-ahead, delete after reading), chapter multi-select
 
 ## Known limitations
 
 - **CBR (RAR5):** junrar cannot decode RAR5 archives. RAR4 files work; RAR5 reports a clear error
   suggesting conversion to CBZ.
-- **MOBI/AZW3, FB2, DOCX, ODT, RTF:** converted to HTML on import, capped at 80 MB, with embedded
-  pictures limited to 16 MB per book. DRM-protected files show a clear error instead of opening. A
-  combo MOBI+KF8 (AZW3) file is read as one PalmDOC text blob rather than cleanly separating its
-  flows, so it can occasionally mix in markup that belongs to a later flow.
-- **Manga extensions:** only Mihon/Tachiyomi-compatible extensions (extension-lib 1.4-1.6) load. A
-  repository's `index.pb` is read on a best-effort basis against the documented schema; if that
-  ever drifts, `index.min.json` is the fallback every repository also offers. Cloudflare's
-  non-interactive check is solved automatically; a captcha or a manual "verify you are human" needs
-  "Open the site" once.
-- **From the web:** pages are capped at 8 MB with at most 40 pictures (4 MB each, 12 MB total);
-  anything over that is dropped rather than left as a broken remote image.
+- **DRM:** books locked with DRM (most Kindle store purchases, Adobe-protected EPUBs) cannot be
+  opened; Folio says so instead of failing silently.
+- **Converted formats:** MOBI with HUFF/CDIC compression is not read. KF8 (AZW3) text is read in
+  its stored order rather than reassembled, so some publisher layout is lost; links inside MOBI
+  books do not jump. DOCX and ODT keep text structure, emphasis, lists, tables and pictures, not
+  page layout; footnotes in ODT are left out. Pictures beyond 16 MB per book are left out.
 - **Scanned PDFs:** searching inside them needs OCR, which is not implemented, so image-only pages
   have no text to index or select.
-- **Text reader:** plain TXT/Markdown/HTML documents are loaded whole and capped at 12 MB; images
-  referenced by relative paths in a standalone HTML file will not resolve.
-- **Text-to-speech:** not implemented. Dictionary look-up is (Look up, in the reader's selection
-  toolbar), via whatever dictionary/translation apps are installed on the device.
+- **Text reader:** documents are loaded whole and capped at 12 MB; images referenced by relative
+  paths in a standalone HTML file will not resolve.
+- **Text-to-speech:** not implemented.
 - **Cloud sync:** deliberately absent.
 - **Music formats:** ALAC, APE, WMA and DSD are not supported (no FFmpeg decoder bundled). Tags are
   never written back into audio files.
+- **Manga sources:** extensions are built for Mihon, so one that starts relying on something new in
+  Mihon's runtime may fail in Folio until that piece is added. Sites also change; those fixes arrive
+  as extension updates. Not implemented: trackers (AniList, MyAnimeList…), automatic library
+  updates, DNS-over-HTTPS, Shizuku installs.
 
 ## Tests
 
 - JVM unit tests: metadata override rules, tag normalisation and autocomplete ranking, statistics
-  and streak logic — `./gradlew :app:testDebugUnitTest`
+  and streak logic, and for manga: Mihon's chapter-number recognition tests, chapter sync rules,
+  chapter selection, source languages, the protobuf repository index and search across sources;
+  the MOBI/AZW3, FB2, DOCX, ODT and RTF converters against sample books written by an independent
+  generator (`app/src/test/resources/formats/make_samples.py`); finding the article in a web page,
+  next-chapter links, and RSS/Atom feeds —
+  `./gradlew :app:testDebugUnitTest`
 - Instrumented tests (real database on a device): position round-trip, overrides surviving a
   rescan, tags, annotations, remove/restore/purge, duplicate detection, collection ordering and a
   full backup/restore round trip — `./gradlew :app:connectedDebugAndroidTest`
-
-## About this project
-
-Folio is a personal project built **completely with AI** using Claude Code. Every feature above was
-requested in plain language and then implemented, tested and documented by the AI. As with any
-software, bugs are possible — please open an issue if you find one.

@@ -24,27 +24,18 @@ serialization = "1.11.0"
 coroutines = "1.11.0"
 commonmark = "0.30.0"
 jsoup = "1.23.2"
-junit = "4.13.2"
-desugar = "2.1.5"
 okhttp = "5.5.0"
-rxjava = "1.3.8"
+rxJava = "1.3.8"
 injekt = "1.16.1"
 quickjs = "547f5b1597"
-imagedecoder = "16"
+image-decoder = "16"
 preference = "1.2.1"
+junit = "4.13.2"
+sqlite-jdbc = "3.46.1.3"
+desugar = "2.1.5"
 
 [libraries]
-okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
-okhttp-brotli = { group = "com.squareup.okhttp3", name = "okhttp-brotli", version.ref = "okhttp" }
-okhttp-zstd = { group = "com.squareup.okhttp3", name = "okhttp-zstd", version.ref = "okhttp" }
-rxjava = { group = "io.reactivex", name = "rxjava", version.ref = "rxjava" }
-injekt-core = { group = "uy.kohesive.injekt", name = "injekt-core", version.ref = "injekt" }
-kotlinx-serialization-json-okio = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json-okio", version.ref = "serialization" }
-kotlinx-serialization-protobuf = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-protobuf", version.ref = "serialization" }
-quickjs-android = { group = "com.github.zhanghai.quickjs-java", name = "quickjs-android", version.ref = "quickjs" }
-imagedecoder = { group = "ca.mpreg", name = "imagedecoder", version.ref = "imagedecoder" }
-androidx-preference = { group = "androidx.preference", name = "preference-ktx", version.ref = "preference" }
-coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
+sqlite-jdbc = { group = "org.xerial", name = "sqlite-jdbc", version.ref = "sqlite-jdbc" }
 androidx-media3-exoplayer = { group = "androidx.media3", name = "media3-exoplayer", version.ref = "media3" }
 androidx-media3-session = { group = "androidx.media3", name = "media3-session", version.ref = "media3" }
 desugar-jdk-libs = { group = "com.android.tools", name = "desugar_jdk_libs_nio", version.ref = "desugar" }
@@ -80,10 +71,23 @@ commons-compress = { group = "org.apache.commons", name = "commons-compress", ve
 junrar = { group = "com.github.junrar", name = "junrar", version.ref = "junrar" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "serialization" }
+kotlinx-serialization-json-okio = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json-okio", version.ref = "serialization" }
+kotlinx-serialization-protobuf = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-protobuf", version.ref = "serialization" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }
 commonmark = { group = "org.commonmark", name = "commonmark", version.ref = "commonmark" }
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
+# Source API and extension support (Mihon-compatible surface).
+okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
+okhttp-brotli = { group = "com.squareup.okhttp3", name = "okhttp-brotli", version.ref = "okhttp" }
+okhttp-zstd = { group = "com.squareup.okhttp3", name = "okhttp-zstd", version.ref = "okhttp" }
+quickjs-android = { group = "com.github.zhanghai.quickjs-java", name = "quickjs-android", version.ref = "quickjs" }
+# AVIF, JPEG XL, HEIF and JPEG 2000 pages, which Android's own decoder cannot read on many phones.
+image-decoder = { group = "ca.mpreg", name = "imagedecoder", version.ref = "image-decoder" }
+rxjava = { group = "io.reactivex", name = "rxjava", version.ref = "rxJava" }
+injekt-core = { group = "uy.kohesive.injekt", name = "injekt-core", version.ref = "injekt" }
+androidx-preference = { group = "androidx.preference", name = "preference-ktx", version.ref = "preference" }
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-test-junit = { group = "androidx.test.ext", name = "junit", version = "1.3.0" }
 androidx-test-runner = { group = "androidx.test", name = "runner", version = "1.7.0" }

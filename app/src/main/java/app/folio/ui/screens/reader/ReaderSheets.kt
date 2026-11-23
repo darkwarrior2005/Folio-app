@@ -1,14 +1,9 @@
 package app.folio.ui.screens.reader
 
-import app.folio.data.settings.effectiveTextSize
-import app.folio.core.model.ZoomGate
-import app.folio.ui.components.rememberNotificationPermissionRequest
-import androidx.compose.foundation.border
-import app.folio.ui.screens.notes.label
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -31,18 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Gesture
-import androidx.compose.material.icons.rounded.NearMe
-import androidx.compose.material.icons.rounded.NoteAdd
-import androidx.compose.material.icons.rounded.FormatQuote
-import androidx.compose.material.icons.rounded.Translate
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -51,8 +34,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -68,6 +49,8 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
@@ -77,14 +60,25 @@ import app.folio.R
 import app.folio.core.model.DrawnNoteProximity
 import app.folio.core.model.HighlightColor
 import app.folio.core.model.ReaderFamily
+import app.folio.core.model.ZoomGate
 import app.folio.data.settings.ComicDirection
 import app.folio.data.settings.PdfFitMode
 import app.folio.data.settings.PdfViewMode
 import app.folio.data.settings.ReaderScrollMode
 import app.folio.data.settings.ReaderTextAlign
+import app.folio.data.settings.effectiveTextSize
 import app.folio.reader.ReaderFonts
 import app.folio.reader.api.ReaderSelection
 import app.folio.ui.LocalContainer
+import app.folio.ui.components.SectionHeader
+import app.folio.ui.components.SliderRow
+import app.folio.ui.components.StepperRow
+import app.folio.ui.components.SwitchRow
+import app.folio.ui.components.rememberNotificationPermissionRequest
+import app.folio.ui.icons.FolioIcons
+import app.folio.ui.screens.notes.label
+import app.folio.ui.share.QuoteCard
+import app.folio.ui.share.TextLookup
 import app.folio.ui.util.Format
 import kotlinx.coroutines.launch
 
@@ -249,7 +243,7 @@ private fun BookmarksSheet(viewModel: ReaderViewModel, onDismiss: () -> Unit) {
                         }
                     }
                     IconButton(onClick = { viewModel.deleteBookmark(bookmark.id) }) {
-                        Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.action_delete))
+                        Icon(FolioIcons.Delete, contentDescription = stringResource(R.string.action_delete))
                     }
                 }
             }
@@ -319,7 +313,7 @@ private fun DrawingsSheet(viewModel: ReaderViewModel, onDismiss: () -> Unit, onO
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Icon(
-                        Icons.Rounded.Gesture,
+                        FolioIcons.Gesture,
                         contentDescription = null,
                         tint = if (drawing.id in here) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -338,7 +332,7 @@ private fun DrawingsSheet(viewModel: ReaderViewModel, onDismiss: () -> Unit, onO
                             onDismiss()
                         },
                     ) {
-                        Icon(Icons.Rounded.NearMe, contentDescription = stringResource(R.string.drawings_go_to))
+                        Icon(FolioIcons.NearMe, contentDescription = stringResource(R.string.drawings_go_to))
                     }
                 }
             }
@@ -370,7 +364,7 @@ private fun ReaderSettingsSheet(viewModel: ReaderViewModel) {
         when (family) {
             ReaderFamily.EPUB, ReaderFamily.TEXT -> {
                 val reflowable = settings.reflowable
-                SettingLabel(stringResource(R.string.setting_page_theme))
+                SectionHeader(stringResource(R.string.setting_section_typography))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = reflowable.readerThemeId == null,
@@ -395,7 +389,6 @@ private fun ReaderSettingsSheet(viewModel: ReaderViewModel) {
                     }
                 }
 
-                SettingLabel(stringResource(R.string.setting_font))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ReaderFonts.all.forEach { font ->
                         FilterChip(
@@ -454,6 +447,7 @@ private fun ReaderSettingsSheet(viewModel: ReaderViewModel) {
                     update { it.copy(reflowable = it.reflowable.copy(paragraphSpacing = value.toDouble(), publisherStyles = false)) }
                 }
 
+                SectionHeader(stringResource(R.string.setting_section_layout))
                 StepperRow(
                     label = stringResource(R.string.setting_margins),
                     value = "${reflowable.pageMarginsPercent}%",
@@ -477,7 +471,6 @@ private fun ReaderSettingsSheet(viewModel: ReaderViewModel) {
                     },
                 )
 
-                SettingLabel(stringResource(R.string.setting_text_align))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ReaderTextAlign.entries.forEach { align ->
                         FilterChip(
@@ -488,7 +481,6 @@ private fun ReaderSettingsSheet(viewModel: ReaderViewModel) {
                     }
                 }
 
-                SettingLabel(stringResource(R.string.setting_reading_mode))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     FilterChip(
                         selected = reflowable.scrollMode == ReaderScrollMode.PAGINATED,
@@ -518,7 +510,7 @@ private fun ReaderSettingsSheet(viewModel: ReaderViewModel) {
 
             ReaderFamily.PDF -> {
                 val pdf = settings.pdf
-                SettingLabel(stringResource(R.string.setting_view_mode))
+                SectionHeader(stringResource(R.string.setting_section_view))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PdfViewMode.entries.forEach { mode ->
                         FilterChip(
@@ -528,7 +520,7 @@ private fun ReaderSettingsSheet(viewModel: ReaderViewModel) {
                         )
                     }
                 }
-                SettingLabel(stringResource(R.string.setting_fit))
+                SectionHeader(stringResource(R.string.setting_section_display))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     PdfFitMode.entries.forEach { mode ->
                         FilterChip(
@@ -558,7 +550,7 @@ private fun ReaderSettingsSheet(viewModel: ReaderViewModel) {
 
             ReaderFamily.COMIC -> {
                 val comic = settings.comic
-                SettingLabel(stringResource(R.string.setting_direction))
+                SectionHeader(stringResource(R.string.setting_section_layout))
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ComicDirection.entries.forEach { direction ->
                         FilterChip(
@@ -590,7 +582,7 @@ private fun ReaderSettingsSheet(viewModel: ReaderViewModel) {
             null -> Unit
         }
 
-        SettingLabel(stringResource(R.string.settings_reader))
+        SectionHeader(stringResource(R.string.settings_section_behavior))
         SwitchRow(stringResource(R.string.setting_keep_screen_on), settings.behavior.keepScreenOn) { checked ->
             update { it.copy(behavior = it.behavior.copy(keepScreenOn = checked)) }
         }
@@ -599,6 +591,12 @@ private fun ReaderSettingsSheet(viewModel: ReaderViewModel) {
         }
         SwitchRow(stringResource(R.string.setting_invert_tap), settings.behavior.invertTapZones) { checked ->
             update { it.copy(behavior = it.behavior.copy(invertTapZones = checked)) }
+        }
+        SwitchRow(stringResource(R.string.setting_reading_ruler), settings.behavior.readingRuler) { checked ->
+            update { it.copy(behavior = it.behavior.copy(readingRuler = checked)) }
+        }
+        SwitchRow(stringResource(R.string.setting_page_turn_sound), settings.behavior.pageTurnSound) { checked ->
+            update { it.copy(behavior = it.behavior.copy(pageTurnSound = checked)) }
         }
     }
 }
@@ -642,7 +640,7 @@ private fun PomodoroSheet(viewModel: ReaderViewModel) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             if (!state.active) {
                 TextButton(onClick = { askNotifications(); viewModel.startPomodoro() }) {
-                    Icon(Icons.Rounded.PlayArrow, contentDescription = null)
+                    Icon(FolioIcons.PlayArrow, contentDescription = null)
                     Spacer(Modifier.width(6.dp))
                     Text(stringResource(R.string.pomodoro_start))
                 }
@@ -705,12 +703,12 @@ private fun NoteSheet(viewModel: ReaderViewModel, onDismiss: () -> Unit) {
 @Composable
 fun SelectionToolbar(
     selection: ReaderSelection,
+    bookTitle: String,
     onHighlight: (HighlightColor) -> Unit,
     onNote: () -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
-    bookTitle: String = "",
 ) {
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
@@ -745,18 +743,9 @@ fun SelectionToolbar(
                 }
             }
         }
-        Row(
-            Modifier.horizontalScroll(androidx.compose.foundation.rememberScrollState()),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onNote) {
-                Icon(Icons.Rounded.NoteAdd, contentDescription = stringResource(R.string.action_add_note))
-            }
-            IconButton(onClick = { app.folio.ui.share.lookUp(context, selection.text) }) {
-                Icon(Icons.Rounded.Translate, contentDescription = stringResource(R.string.action_look_up))
-            }
-            IconButton(onClick = { app.folio.ui.share.QuoteCard.share(context, selection.text, bookTitle) }) {
-                Icon(Icons.Rounded.FormatQuote, contentDescription = stringResource(R.string.action_quote_card))
+                Icon(FolioIcons.NoteAdd, contentDescription = stringResource(R.string.action_add_note))
             }
             IconButton(
                 onClick = {
@@ -764,7 +753,7 @@ fun SelectionToolbar(
                     onDismiss()
                 },
             ) {
-                Icon(Icons.Rounded.ContentCopy, contentDescription = stringResource(R.string.action_copy))
+                Icon(FolioIcons.ContentCopy, contentDescription = stringResource(R.string.action_copy))
             }
             IconButton(
                 onClick = {
@@ -776,15 +765,31 @@ fun SelectionToolbar(
                     onDismiss()
                 },
             ) {
-                Icon(Icons.Rounded.Share, contentDescription = stringResource(R.string.action_share))
+                Icon(FolioIcons.Share, contentDescription = stringResource(R.string.action_share))
+            }
+            IconButton(
+                onClick = {
+                    TextLookup.lookUp(context, selection.text)
+                    onDismiss()
+                },
+            ) {
+                Icon(FolioIcons.Dictionary, contentDescription = stringResource(R.string.lookup_title))
+            }
+            IconButton(
+                onClick = {
+                    runCatching { QuoteCard.share(context, selection.text, bookTitle, null) }
+                    onDismiss()
+                },
+            ) {
+                Icon(FolioIcons.QuoteCard, contentDescription = stringResource(R.string.quote_card_share))
             }
             if (selection.existingHighlightId != null) {
                 IconButton(onClick = onDelete) {
-                    Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.action_delete))
+                    Icon(FolioIcons.Delete, contentDescription = stringResource(R.string.action_delete))
                 }
             }
             IconButton(onClick = onDismiss) {
-                Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_close))
+                Icon(FolioIcons.Close, contentDescription = stringResource(R.string.action_close))
             }
         }
     }
@@ -801,67 +806,6 @@ private fun SheetTitle(text: String, padded: Boolean = true) {
             Modifier.padding(vertical = 12.dp)
         },
     )
-}
-
-@Composable
-private fun SettingLabel(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelLarge,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.padding(top = 18.dp, bottom = 8.dp),
-    )
-}
-
-@Composable
-private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable { onChange(!checked) }
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
-    }
-}
-
-@Composable
-private fun StepperRow(label: String, value: String, onDecrease: () -> Unit, onIncrease: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        TextButton(onClick = onDecrease) { Text("−") }
-        Text(value, style = MaterialTheme.typography.labelLarge)
-        TextButton(onClick = onIncrease) { Text("+") }
-    }
-}
-
-@Composable
-private fun SliderRow(
-    label: String,
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    display: String,
-    onChange: (Float) -> Unit,
-) {
-    Column(Modifier.padding(vertical = 6.dp)) {
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text(display, style = MaterialTheme.typography.labelMedium)
-        }
-        Slider(value = value.coerceIn(range.start, range.endInclusive), valueRange = range, onValueChange = onChange)
-    }
 }
 
 @Composable

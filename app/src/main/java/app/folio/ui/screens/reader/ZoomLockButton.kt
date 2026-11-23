@@ -10,9 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.LockOpen
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -35,6 +32,7 @@ import androidx.compose.ui.unit.dp
 import app.folio.R
 import app.folio.core.model.NormalizedOffset
 import app.folio.core.model.ZoomLockPlacement
+import app.folio.ui.icons.FolioIcons
 import kotlin.math.roundToInt
 
 private val BUTTON_SIZE = 44.dp
@@ -108,7 +106,7 @@ fun ZoomLockButton(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = if (locked) Icons.Rounded.Lock else Icons.Rounded.LockOpen,
+                imageVector = if (locked) FolioIcons.Lock else FolioIcons.LockOpen,
                 contentDescription = null,
                 tint = if (locked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )

@@ -16,33 +16,30 @@ enum class BookFormat(
     IMAGE_FOLDER(ReaderFamily.COMIC, emptySet(), emptySet(), "Images"),
     IMAGE(
         ReaderFamily.COMIC,
-        setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "avif", "heic", "heif"),
-        setOf("image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp", "image/avif", "image/heic", "image/heif"),
+        setOf("jpg", "jpeg", "png", "webp", "gif", "bmp", "avif", "heic", "heif", "jxl"),
+        setOf("image/jpeg", "image/png", "image/webp", "image/gif", "image/bmp", "image/avif", "image/heic", "image/heif", "image/jxl"),
         "Image",
     ),
     TXT(ReaderFamily.TEXT, setOf("txt", "text"), setOf("text/plain"), "TXT"),
     MARKDOWN(ReaderFamily.TEXT, setOf("md", "markdown", "mdown", "mkd"), setOf("text/markdown", "text/x-markdown"), "Markdown"),
     HTML(ReaderFamily.TEXT, setOf("html", "htm", "xhtml"), setOf("text/html", "application/xhtml+xml"), "HTML"),
+
+    // Read by converting to HTML for the text reader (reader/text/convert).
     MOBI(
         ReaderFamily.TEXT,
         setOf("mobi", "azw", "azw3", "prc"),
         setOf("application/x-mobipocket-ebook", "application/vnd.amazon.ebook", "application/vnd.amazon.mobi8-ebook"),
         "MOBI",
     ),
-    FB2(ReaderFamily.TEXT, setOf("fb2", "fbz"), setOf("application/x-fictionbook+xml"), "FB2"),
-    DOCX(
-        ReaderFamily.TEXT,
-        setOf("docx"),
-        setOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-        "DOCX",
-    ),
+    FB2(ReaderFamily.TEXT, setOf("fb2", "fbz"), setOf("application/x-fictionbook+xml", "application/x-fictionbook", "application/x-fb2"), "FB2"),
+    DOCX(ReaderFamily.TEXT, setOf("docx"), setOf("application/vnd.openxmlformats-officedocument.wordprocessingml.document"), "Word"),
     ODT(ReaderFamily.TEXT, setOf("odt"), setOf("application/vnd.oasis.opendocument.text"), "ODT"),
     RTF(ReaderFamily.TEXT, setOf("rtf"), setOf("application/rtf", "text/rtf"), "RTF");
 
-    val isReflowable: Boolean get() = family == ReaderFamily.EPUB || family == ReaderFamily.TEXT
+    /** Formats the text reader shows by converting them to HTML first. */
+    val isConverted: Boolean get() = this == MOBI || this == FB2 || this == DOCX || this == ODT || this == RTF
 
-    /** Converted to HTML on import rather than rendered in their native layout. */
-    val isConverted: Boolean get() = this in setOf(MOBI, FB2, DOCX, ODT, RTF)
+    val isReflowable: Boolean get() = family == ReaderFamily.EPUB || family == ReaderFamily.TEXT
 
     companion object {
         fun fromExtension(ext: String?): BookFormat? {

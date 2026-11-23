@@ -1,40 +1,44 @@
 package eu.kanade.tachiyomi.network.interceptor
 
 import okhttp3.HttpUrl
-import okhttp3.Interceptor
-import okhttp3.Response
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 import kotlin.time.Duration
+import kotlin.time.Duration.Companion.seconds
+import kotlin.time.toDuration
+import kotlin.time.toDurationUnit
 
-/** Like [RateLimitInterceptor], but only requests to [host] are throttled; others pass through. */
-class SpecificHostRateLimitInterceptor(
-    private val host: HttpUrl,
-    private val permits: Int,
-    period: Duration,
-) : Interceptor {
+/**
+ * Rate limits only requests to the host of [httpUrl].
+ *
+ * @since extension-lib 1.3
+ */
+@Deprecated("Use the version with kotlin.time APIs instead.")
+fun OkHttpClient.Builder.rateLimitHost(
+    httpUrl: HttpUrl,
+    permits: Int,
+    period: Long = 1,
+    unit: TimeUnit = TimeUnit.SECONDS,
+) = addInterceptor(RateLimitInterceptor(httpUrl.host, permits, period.toDuration(unit.toDurationUnit())))
 
-    private val periodNanos = period.inWholeNanoseconds
-    private val requestQueue = ArrayDeque<Long>()
-    private val fairLock = Any()
+/**
+ * Rate limits only requests to the host of [httpUrl].
+ *
+ * @since extension-lib 1.5
+ */
+@Suppress("UNUSED")
+fun OkHttpClient.Builder.rateLimitHost(
+    httpUrl: HttpUrl,
+    permits: Int,
+    period: Duration = 1.seconds,
+) = addInterceptor(RateLimitInterceptor(httpUrl.host, permits, period))
 
-    override fun intercept(chain: Interceptor.Chain): Response {
-        val request = chain.request()
-        if (request.url.host != host.host) {
-            return chain.proceed(request)
-        }
-        synchronized(fairLock) {
-            while (requestQueue.size >= permits) {
-                val now = System.nanoTime()
-                val remaining = periodNanos - (now - requestQueue.first())
-                if (remaining <= 0) {
-                    requestQueue.removeFirst()
-                    continue
-                }
-                TimeUnit.NANOSECONDS.sleep(remaining)
-                requestQueue.removeFirst()
-            }
-            requestQueue.addLast(System.nanoTime())
-        }
-        return chain.proceed(request)
-    }
-}
+/**
+ * Rate limits only requests to the host of [url].
+ *
+ * @since extension-lib 1.5
+ */
+@Suppress("UNUSED")
+fun OkHttpClient.Builder.rateLimitHost(url: String, permits: Int, period: Duration = 1.seconds) =
+    addInterceptor(RateLimitInterceptor(url.toHttpUrlOrNull()?.host, permits, period))

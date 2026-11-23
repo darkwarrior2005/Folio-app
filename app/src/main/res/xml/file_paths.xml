@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<paths xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Only the quote-card scratch folder is exposed; nothing else in app storage is shared. -->
+<!-- Only what Folio shares on purpose, such as quote cards. -->
+<paths>
     <cache-path name="shared" path="shared/" />
 </paths>

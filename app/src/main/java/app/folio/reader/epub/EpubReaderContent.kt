@@ -10,9 +10,6 @@ import app.folio.reader.api.ZoomNotice
 import app.folio.data.settings.effectiveTextSize
 import app.folio.core.model.ZoomLimit
 import app.folio.core.model.ZoomGate
-import android.view.ActionMode
-import android.view.Menu
-import android.view.MenuItem
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.CircularProgressIndicator
@@ -29,10 +26,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
-import androidx.compose.ui.platform.LocalContext
 import androidx.fragment.compose.AndroidFragment
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.folio.R
 import app.folio.core.model.BookLocation
 import app.folio.core.model.InBookSearchHit
 import app.folio.data.db.HighlightEntity
@@ -43,7 +38,6 @@ import app.folio.data.settings.ReflowableSettings
 import app.folio.reader.ReaderFonts
 import app.folio.reader.api.ReaderController
 import app.folio.reader.api.ReaderHost
-import app.folio.reader.api.ReaderSelection
 import app.folio.reader.pdf.TapAction
 import app.folio.reader.pdf.tapZone
 import kotlinx.coroutines.CoroutineScope
@@ -68,12 +62,9 @@ import org.readium.r2.shared.util.AbsoluteUrl
 
 private const val DECORATION_GROUP = "highlights"
 private const val MAX_SEARCH_HITS = 300
-private const val MENU_HIGHLIGHT = 91001
-private const val MENU_NOTE = 91002
 
 @Composable
 fun EpubReaderContent(host: ReaderHost, readium: ReadiumStack) {
-    val context = LocalContext.current
     val settings by host.settings.collectAsStateWithLifecycle()
     val highlights by host.highlights.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -119,44 +110,10 @@ fun EpubReaderContent(host: ReaderHost, readium: ReadiumStack) {
         )
     }
 
-    val selectionLabels = remember(context) {
-        SelectionLabels(
-            highlight = context.getString(R.string.action_highlight),
-            note = context.getString(R.string.action_add_note),
-        )
-    }
-
-    // Selection actions are added to the system text selection menu inside the WebView.
-    val selectionCallback = remember(loaded) {
-        SelectionActionModeCallback(selectionLabels) { action ->
-            val current = fragment ?: return@SelectionActionModeCallback
-            scope.launch {
-                val selection = current.currentSelection() ?: return@launch
-                host.onSelectionChanged(
-                    ReaderSelection(
-                        text = selection.locator.text.highlight.orEmpty().ifBlank {
-                            selection.locator.title.orEmpty()
-                        },
-                        location = selection.locator.toBookLocation(),
-                        positionLabel = selection.locator.title.orEmpty(),
-                        progress = (selection.locator.locations.totalProgression ?: 0.0).toFloat(),
-                        page = null,
-                        range = null,
-                        anchor = null,
-                    ),
-                )
-                if (action == SelectionAction.NOTE) {
-                    // The reader screen opens the note editor when a selection arrives with text.
-                    current.clearSelection()
-                }
-            }
-        }
-    }
-
     val navigatorFactory = remember(loaded) { EpubNavigatorFactory(loaded) }
     val initialLocator = remember(loaded) { host.initialLocation?.toReadiumLocator() }
 
-    DisposableEffect(navigatorFactory, initialLocator, selectionCallback) {
+    DisposableEffect(navigatorFactory, initialLocator) {
         ReaderFragmentFactory.delegate = navigatorFactory.createFragmentFactory(
             initialLocator = initialLocator,
             initialPreferences = preferences,
@@ -167,7 +124,6 @@ fun EpubReaderContent(host: ReaderHost, readium: ReadiumStack) {
             },
             configuration = EpubNavigatorFragment.Configuration {
                 servedAssets = listOf("fonts/.*")
-                selectionActionModeCallback = selectionCallback
                 ReaderFonts.bundled.forEach { font ->
                     addFontFamilyDeclaration(ReadiumFontFamily(font.displayName)) {
                         addFontFace {
@@ -299,21 +255,9 @@ fun EpubReaderContent(host: ReaderHost, readium: ReadiumStack) {
 
     DisposableEffect(navigator, highlights) {
         val current = navigator
+        // Annotation is PDF-only; tapping an existing highlight here just consumes the tap.
         val listener = object : DecorableNavigator.Listener {
-            override fun onDecorationActivated(event: DecorableNavigator.OnActivatedEvent): Boolean {
-                val id = event.decoration.id.toLongOrNull() ?: return false
-                val highlight = highlights.firstOrNull { it.id == id } ?: return false
-                host.onSelectionChanged(
-                    ReaderSelection(
-                        text = highlight.text,
-                        location = LocationCodec.decode(highlight.location) ?: BookLocation(),
-                        positionLabel = highlight.positionLabel,
-                        progress = highlight.progress,
-                        existingHighlightId = highlight.id,
-                    ),
-                )
-                return true
-            }
+            override fun onDecorationActivated(event: DecorableNavigator.OnActivatedEvent): Boolean = true
         }
         current?.addDecorationListener(DECORATION_GROUP, listener)
         onDispose { current?.removeDecorationListener(listener) }
@@ -439,38 +383,4 @@ private fun isDark(argb: Int): Boolean {
     val g = (argb shr 8) and 0xFF
     val b = argb and 0xFF
     return (r * 299 + g * 587 + b * 114) / 1000 < 128
-}
-
-private enum class SelectionAction { HIGHLIGHT, NOTE }
-
-private data class SelectionLabels(val highlight: String, val note: String)
-
-private class SelectionActionModeCallback(
-    private val labels: SelectionLabels,
-    private val onAction: (SelectionAction) -> Unit,
-) : ActionMode.Callback {
-
-    override fun onCreateActionMode(mode: ActionMode, menu: Menu): Boolean {
-        menu.add(0, MENU_HIGHLIGHT, 0, labels.highlight)
-        menu.add(0, MENU_NOTE, 1, labels.note)
-        return true
-    }
-
-    override fun onPrepareActionMode(mode: ActionMode, menu: Menu): Boolean = false
-
-    override fun onActionItemClicked(mode: ActionMode, item: MenuItem): Boolean = when (item.itemId) {
-        MENU_HIGHLIGHT -> {
-            onAction(SelectionAction.HIGHLIGHT)
-            mode.finish()
-            true
-        }
-        MENU_NOTE -> {
-            onAction(SelectionAction.NOTE)
-            mode.finish()
-            true
-        }
-        else -> false
-    }
-
-    override fun onDestroyActionMode(mode: ActionMode) = Unit
 }

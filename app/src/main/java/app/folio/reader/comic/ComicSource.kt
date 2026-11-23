@@ -3,13 +3,14 @@ package app.folio.reader.comic
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import app.folio.core.model.BookFormat
-import app.folio.core.model.TocEntry
 import app.folio.core.model.BookLocation
+import app.folio.core.model.TocEntry
 import app.folio.data.files.CacheStore
 import app.folio.data.files.FileAccess
 import app.folio.data.files.NaturalOrder
 import app.folio.reader.api.BookOpenError
 import app.folio.reader.api.BookSource
+import ca.mpreg.imagedecoder.ImageDecoder as NativeImageDecoder
 import com.github.junrar.Archive
 import com.github.junrar.rarfile.FileHeader
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
 import org.apache.commons.compress.archivers.zip.ZipFile
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
@@ -88,8 +90,16 @@ object ComicSources {
         }
     }
 
-    /** Decode a page scaled down to roughly the width it will be drawn at. */
-    fun decode(bytes: ByteArray, targetWidthPx: Int): Bitmap? = try {
+    /**
+     * Decode a page scaled down to roughly the width it will be drawn at.
+     *
+     * Android's own decoder goes first. What it cannot read (AVIF on many phones, JPEG XL, some
+     * HEIF) goes to the bundled native decoder, which is what Mihon uses for the same pages.
+     */
+    fun decode(bytes: ByteArray, targetWidthPx: Int): Bitmap? = decodeWithPlatform(bytes, targetWidthPx)
+        ?: decodeWithNative(bytes, targetWidthPx)
+
+    private fun decodeWithPlatform(bytes: ByteArray, targetWidthPx: Int): Bitmap? = try {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
         val options = BitmapFactory.Options().apply {
@@ -101,6 +111,40 @@ object ComicSources {
         null
     } catch (e: OutOfMemoryError) {
         null
+    }
+
+    private fun decodeWithNative(bytes: ByteArray, targetWidthPx: Int): Bitmap? = try {
+        NativeImageDecoder.open(ByteArrayInputStream(bytes)).use { decoder ->
+            val hdr = decoder.isHdr
+            decoder.decodeNext().use { frame ->
+                val config = if (hdr) Bitmap.Config.RGBA_F16 else Bitmap.Config.ARGB_8888
+                val full = Bitmap.createBitmap(frame.width, frame.height, config)
+                frame.image.rewind()
+                full.copyPixelsFromBuffer(frame.image)
+                scaleToWidth(full, targetWidthPx)
+            }
+        }
+    } catch (e: Exception) {
+        null
+    } catch (e: OutOfMemoryError) {
+        null
+    } catch (e: LinkageError) {
+        // The native library is missing for this CPU.
+        null
+    }
+
+    /** Halves a decoded page while it stays at least [targetWidth] wide, like inSampleSize does. */
+    private fun scaleToWidth(bitmap: Bitmap, targetWidth: Int): Bitmap {
+        val sample = sampleSize(bitmap.width, targetWidth)
+        if (sample <= 1) return bitmap
+        val scaled = Bitmap.createScaledBitmap(
+            bitmap,
+            (bitmap.width / sample).coerceAtLeast(1),
+            (bitmap.height / sample).coerceAtLeast(1),
+            true,
+        )
+        if (scaled !== bitmap) bitmap.recycle()
+        return scaled
     }
 
     fun sampleSize(sourceWidth: Int, targetWidth: Int): Int {

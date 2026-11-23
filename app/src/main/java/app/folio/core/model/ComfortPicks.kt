@@ -2,27 +2,27 @@ package app.folio.core.model
 
 import kotlin.random.Random
 
-/** Pure picks for the Welcome back card: resume, or surprise me with something else to read. */
+/** Small, friendly choices the home screen makes for the reader. */
 object ComfortPicks {
 
-    /** The book being read right now: in progress, most recently opened. */
+    /** The book to pick up again: the one opened most recently that is started but not finished. */
     fun resume(books: List<LibraryBook>): LibraryBook? = books
-        .filter { !it.missing && it.finishedAt == null && it.progress > 0f && it.progress < 1f }
-        .maxByOrNull { it.lastOpenedAt ?: it.dateAdded }
+        .filter { !it.missing && it.lastOpenedAt != null && it.isUnfinished() }
+        .maxByOrNull { it.lastOpenedAt ?: 0L }
 
     /**
-     * Picks something other than the book currently being read: from the reading queue first (in
-     * queue order), else a random unfinished book. Never returns [current].
+     * "Surprise me": a random book from the reading queue, or, with an empty queue, from the books
+     * not finished yet, never the one being read right now. Null when there is nothing to offer.
      */
-    fun surprise(books: List<LibraryBook>, queueBookIds: List<Long>, random: Random = Random, current: LibraryBook? = resume(books)): LibraryBook? {
-        val byId = books.associateBy { it.id }
-        val fromQueue = queueBookIds
-            .mapNotNull { byId[it] }
-            .firstOrNull { !it.missing && it.finishedAt == null && it.id != current?.id }
-        if (fromQueue != null) return fromQueue
-
-        val candidates = books.filter { !it.missing && it.finishedAt == null && it.id != current?.id }
-        if (candidates.isEmpty()) return null
-        return candidates[random.nextInt(candidates.size)]
+    fun surprise(books: List<LibraryBook>, queueIds: List<Long>, random: Random = Random.Default): LibraryBook? {
+        val current = resume(books)?.id
+        val available = books.filter { !it.missing && it.id != current }
+        val byId = available.associateBy { it.id }
+        val fromQueue = queueIds.mapNotNull { byId[it] }
+        val pool = fromQueue.ifEmpty { available.filter { it.isUnfinished() } }
+        return pool.randomOrNull(random)
     }
+
+    private fun LibraryBook.isUnfinished(): Boolean =
+        status != ReadingStatus.FINISHED && progress < LibraryQuery.FINISHED_PROGRESS
 }

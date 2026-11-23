@@ -63,6 +63,13 @@ class SettingsViewModel(private val container: AppContainer) : ViewModel() {
         }
     }
 
+    /** Wipes the browsing trail now; see [app.folio.data.privacy.BrowsingData]. */
+    fun clearBrowsingData(includeSiteData: Boolean, onDone: () -> Unit) = viewModelScope.launch {
+        container.browsingData.forget(includeSiteData)
+        refreshStorage()
+        onDone()
+    }
+
     fun clearCache() = viewModelScope.launch {
         withContext(Dispatchers.IO) { container.cache.clearAllCaches() }
         refreshStorage()

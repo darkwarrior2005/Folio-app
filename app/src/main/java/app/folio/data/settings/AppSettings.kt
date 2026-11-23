@@ -25,63 +25,6 @@ enum class HomeSection { CONTINUE_READING, READING_GOAL, STREAK, RECENTLY_ADDED,
 /** Bookshelf shows collections as shelves; Classic is the original list of home sections. */
 enum class HomeStyle { BOOKSHELF, CLASSIC }
 
-enum class NightLightMode { OFF, ALWAYS, SCHEDULED }
-
-@Serializable
-data class NightLightSettings(
-    val mode: NightLightMode = NightLightMode.OFF,
-    val warmth: Float = 0.5f,
-    val dim: Float = 0f,
-    val startMinutes: Int = 21 * 60,
-    val endMinutes: Int = 7 * 60,
-    val bedtimeReminder: Boolean = false,
-    val bedtimeMinutes: Int = 23 * 60,
-)
-
-@Serializable
-data class MangaSettings(
-    /** Master switch. Nothing manga-related connects to the network while this is off. */
-    val sourcesEnabled: Boolean = false,
-    val allowAdultSources: Boolean = false,
-    /** Blank means NetworkHelper.DEFAULT_USER_AGENT. */
-    val userAgent: String = "",
-    val downloadOverWifiOnly: Boolean = true,
-    val parallelPageDownloads: Int = 2,
-    val saveChaptersAsCbz: Boolean = true,
-    val writeComicInfo: Boolean = true,
-    val downloadAheadChapters: Int = 0,
-    val deleteChapterAfterRead: Boolean = false,
-    val globalSearchExcludedSources: Set<Long> = emptySet(),
-    /** Stored as hidden, not shown, so a newly added language appears without a migration. */
-    val hiddenLanguages: Set<String> = emptySet(),
-    val disabledExtensions: Set<String> = emptySet(),
-    val lockExtensions: Boolean = true,
-)
-
-@Serializable
-data class SavedFeed(
-    val url: String,
-    val title: String,
-    val siteUrl: String? = null,
-)
-
-@Serializable
-data class WebNovel(
-    val bookId: Long,
-    val title: String,
-    val lastUrl: String,
-    val nextUrl: String? = null,
-    val chapters: Int = 0,
-    val checkedAt: Long = 0,
-)
-
-@Serializable
-data class WebSettings(
-    val enabled: Boolean = false,
-    val feeds: List<SavedFeed> = emptyList(),
-    val novels: List<WebNovel> = emptyList(),
-)
-
 @Serializable
 data class AppearanceSettings(
     val themeId: String = "paper",
@@ -163,6 +106,31 @@ data class ReaderBehaviorSettings(
     val pageTurnHaptic: Boolean = false,
 )
 
+/**
+ * Reading from the web: saved pages, feeds and web novels. Off until turned on, like manga
+ * sources; while off Folio opens no connection for it.
+ */
+@Serializable
+data class WebSettings(
+    val enabled: Boolean = false,
+    val feeds: List<SavedFeed> = emptyList(),
+    val novels: List<WebNovel> = emptyList(),
+)
+
+@Serializable
+data class SavedFeed(val url: String, val title: String, val siteUrl: String? = null)
+
+/** A web novel saved as one book that grows: chapters are added by following "next" links. */
+@Serializable
+data class WebNovel(
+    val bookId: Long,
+    val title: String,
+    val lastUrl: String,
+    val nextUrl: String? = null,
+    val chapters: Int = 0,
+    val checkedAt: Long = 0,
+)
+
 @Serializable
 data class PomodoroSettings(
     val focusMinutes: Int = 25,
@@ -193,11 +161,32 @@ data class PrivacySettings(
     val biometricEnabled: Boolean = false,
     val lockTimeoutSeconds: Int = 30,
     val hideInRecents: Boolean = false,
+    /** Ask the keyboard not to learn from or remember anything typed in Folio. */
     val incognitoKeyboard: Boolean = true,
+    /**
+     * Each time Folio starts, forget the browsing trail: manga only looked at, cached site
+     * responses and covers. The library and downloads stay. See BrowsingData.
+     */
     val forgetBrowsing: Boolean = true,
 ) {
     val lockEnabled: Boolean get() = pinHash != null
 }
+
+/** The warm night filter over the whole app; see app.folio.core.model.NightLight. */
+@Serializable
+data class NightLightSettings(
+    val mode: app.folio.core.model.NightLightMode = app.folio.core.model.NightLightMode.OFF,
+    /** 0..1: how amber the screen turns. */
+    val warmth: Float = 0.5f,
+    /** 0..1: extra darkening, below the phone's own lowest brightness. */
+    val dim: Float = 0f,
+    /** Schedule, in minutes since midnight. */
+    val startMinutes: Int = 21 * 60,
+    val endMinutes: Int = 7 * 60,
+    /** A gentle note at bedtime while Folio is open, to help keep a sleep schedule. */
+    val bedtimeReminder: Boolean = false,
+    val bedtimeMinutes: Int = 23 * 60,
+)
 
 @Serializable
 data class AccessibilitySettings(
@@ -243,6 +232,39 @@ data class ScribbleSettings(
     }
 }
 
+/**
+ * The manga library and its sources.
+ *
+ * Folio is otherwise an offline app, and [sourcesEnabled] is what keeps it that way: while it is
+ * false nothing here opens a connection. Browsing sources, installing extensions and downloading
+ * chapters all check it first, so the app reaches the network only after the user turns this on.
+ */
+@Serializable
+data class MangaSettings(
+    val sourcesEnabled: Boolean = false,
+    /** Load extensions whose sources are marked as adult or mixed content. */
+    val allowAdultSources: Boolean = false,
+    /** Blank means the built-in default. */
+    val userAgent: String = "",
+    val downloadOverWifiOnly: Boolean = true,
+    val parallelPageDownloads: Int = 2,
+    /** Pack a finished chapter into a single CBZ instead of leaving a folder of images. */
+    val saveChaptersAsCbz: Boolean = true,
+    /** Write a ComicInfo.xml next to the pages, so other readers see the metadata. */
+    val writeComicInfo: Boolean = true,
+    /** Chapters to fetch ahead of the one being read. 0 disables it. */
+    val downloadAheadChapters: Int = 0,
+    val deleteChapterAfterRead: Boolean = false,
+    /** Sources the user turned off for searching across all sources. */
+    val globalSearchExcludedSources: Set<Long> = emptySet(),
+    /** Source languages the user hid from extensions, browsing and search. Empty shows all. */
+    val hiddenLanguages: Set<String> = emptySet(),
+    /** Installed extensions the user turned off, by package: their sources are not registered. */
+    val disabledExtensions: Set<String> = emptySet(),
+    /** Ask for the screen lock or a fingerprint before the Extensions screen opens. */
+    val lockExtensions: Boolean = true,
+)
+
 @Serializable
 data class AppSettings(
     val appearance: AppearanceSettings = AppearanceSettings(),
@@ -255,11 +277,11 @@ data class AppSettings(
     val notifications: NotificationSettings = NotificationSettings(),
     val privacy: PrivacySettings = PrivacySettings(),
     val accessibility: AccessibilitySettings = AccessibilitySettings(),
+    val nightLight: NightLightSettings = NightLightSettings(),
     val home: HomeSettings = HomeSettings(),
     val storage: StorageSettings = StorageSettings(),
     val scribble: ScribbleSettings = ScribbleSettings(),
-    val onboardingDone: Boolean = false,
-    val nightLight: NightLightSettings = NightLightSettings(),
     val manga: MangaSettings = MangaSettings(),
     val web: WebSettings = WebSettings(),
+    val onboardingDone: Boolean = false,
 )

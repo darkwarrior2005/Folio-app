@@ -17,7 +17,7 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
-        // Only for QuickJS: the extension sandbox's JS engine isn't on Maven Central.
+        // Only for the QuickJS binding manga extensions expect the app to provide.
         exclusiveContent {
             forRepository { maven("https://www.jitpack.io") }
             filter { includeGroup("com.github.zhanghai.quickjs-java") }

@@ -1,33 +1,41 @@
 package app.folio.core.model
 
-import java.util.Locale
-
 /**
- * One app-wide language choice for manga sources: "Show all" or "Only <device language>".
- * `hiddenLanguages` in [app.folio.data.settings.MangaSettings] is stored as what's hidden rather
- * than what's shown, so a newly supported language appears without a settings migration.
+ * Which source languages the user wants to see. Stored as the languages they hid, so a language
+ * a newly added repository brings shows up until they say otherwise.
+ *
+ * Language codes are the extensions' own: "en", "pt-BR", "zh-Hans", "all" for a source that
+ * covers many languages, and "" or "other" when it does not say.
  */
 object SourceLanguages {
 
-    const val SHOW_ALL = "all"
+    /** The code a language is filed under; an unknown language is "other". */
+    fun normalize(lang: String): String = lang.trim().ifEmpty { OTHER }
 
-    fun deviceLanguage(): String = Locale.getDefault().language
+    fun isShown(lang: String, hidden: Set<String>): Boolean = normalize(lang) !in hidden
 
-    /** Every language code seen among [available], minus whatever's hidden, "all" sorted last. */
-    fun visible(available: Set<String>, hiddenLanguages: Set<String>): List<String> {
-        return available.filterNot { it in hiddenLanguages }.sorted()
+    /**
+     * An extension is shown when its own language is, or, for one that bundles several languages
+     * ("all"), when any of its sources is in a language the user kept.
+     */
+    fun isExtensionShown(lang: String, sourceLangs: Collection<String>, hidden: Set<String>): Boolean {
+        if (hidden.isEmpty()) return true
+        if (normalize(lang) == ALL && sourceLangs.isNotEmpty()) return sourceLangs.any { isShown(it, hidden) }
+        return isShown(lang, hidden)
     }
 
-    fun isVisible(language: String, hiddenLanguages: Set<String>): Boolean = language !in hiddenLanguages
+    /** Every language in [langs], plus any hidden one so it can be turned back on. */
+    fun choices(langs: Collection<String>, hidden: Set<String>): List<String> =
+        (langs.map(::normalize) + hidden).distinct()
 
-    /** Hides every language except [language] (and itself, trivially). */
-    fun onlyShow(available: Set<String>, language: String): Set<String> =
-        available.filterNot { it == language }.toSet()
-
-    fun displayName(languageCode: String): String {
-        if (languageCode == SHOW_ALL) return "All languages"
-        return Locale(languageCode).getDisplayName(Locale.getDefault()).let {
-            it.ifBlank { languageCode }.replaceFirstChar(Char::uppercase)
-        }
+    /** The languages to hide so only [keep] (and "all", which spans languages) stay. */
+    fun hideAllBut(choices: Collection<String>, keep: Collection<String>): Set<String> {
+        val kept = keep.map(::normalize).toSet() + ALL
+        return choices.map(::normalize).filterNot { choice ->
+            choice in kept || kept.any { base -> choice.substringBefore('-').equals(base, ignoreCase = true) }
+        }.toSet()
     }
+
+    const val ALL = "all"
+    const val OTHER = "other"
 }

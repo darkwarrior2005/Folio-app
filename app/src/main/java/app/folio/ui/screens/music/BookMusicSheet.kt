@@ -11,10 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
@@ -43,6 +39,7 @@ import app.folio.data.db.BookMusicSourceEntity
 import app.folio.data.repo.BookMusicSettings
 import app.folio.ui.LocalContainer
 import app.folio.ui.components.SectionHeader
+import app.folio.ui.icons.FolioIcons
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -68,13 +65,13 @@ fun BookMusicSection(bookId: Long) {
                         },
                     )
                 },
-                leadingIcon = { Icon(Icons.Rounded.MusicNote, contentDescription = null) },
+                leadingIcon = { Icon(FolioIcons.MusicNote, contentDescription = null) },
             )
             if (count > 0) {
                 AssistChip(
                     onClick = { container.bookMusic.playBook(bookId) },
                     label = { Text(stringResource(R.string.music_play_book_music)) },
-                    leadingIcon = { Icon(Icons.Rounded.PlayArrow, contentDescription = null) },
+                    leadingIcon = { Icon(FolioIcons.PlayArrow, contentDescription = null) },
                 )
             }
         }
@@ -125,7 +122,7 @@ fun BookMusicSheet(bookId: Long, onDismiss: () -> Unit) {
                             if (checked) collectionIds += entry.collection.id else collectionIds -= entry.collection.id
                         },
                     )
-                    Icon(Icons.Rounded.LibraryMusic, contentDescription = null)
+                    Icon(FolioIcons.LibraryMusic, contentDescription = null)
                     Text(entry.collection.name, modifier = Modifier.padding(start = 8.dp))
                 }
             }

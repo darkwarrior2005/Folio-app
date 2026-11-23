@@ -1,16 +1,37 @@
+@file:Suppress("PropertyName")
+
 package eu.kanade.tachiyomi.source.model
 
-interface SChapter {
+import kotlinx.serialization.json.JsonObject
+import java.io.Serializable
+
+interface SChapter : Serializable {
 
     var url: String
 
     var name: String
 
-    var date_upload: Long
-
     var chapter_number: Float
 
     var scanlator: String?
+
+    var date_upload: Long
+
+    /**
+     * Extra source-specific metadata. Not shown to the user.
+     *
+     * @since tachiyomix 1.6
+     */
+    var memo: JsonObject
+
+    fun copyFrom(other: SChapter) {
+        name = other.name
+        url = other.url
+        date_upload = other.date_upload
+        chapter_number = other.chapter_number
+        scanlator = other.scanlator
+        memo = other.memo
+    }
 
     companion object {
         fun create(): SChapter = SChapterImpl()

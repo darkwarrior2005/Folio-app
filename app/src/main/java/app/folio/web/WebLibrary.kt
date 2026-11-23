@@ -1,195 +1,389 @@
 package app.folio.web
 
 import android.content.Context
-import app.folio.AppContainer
+import android.net.Uri
+import app.folio.data.files.CacheStore
+import app.folio.data.repo.LibraryRepository
 import app.folio.data.settings.SavedFeed
+import app.folio.data.settings.SettingsRepository
 import app.folio.data.settings.WebNovel
+import app.folio.importer.ImportManager
+import app.folio.importer.MetadataRescanner
+import app.folio.reader.text.convert.ImageBudget
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.jsoup.Jsoup
 import java.io.File
-import kotlin.time.Duration.Companion.seconds
+import java.io.IOException
+import java.text.DateFormat
+import java.util.Date
+import java.util.concurrent.TimeUnit
 
-sealed class NothingToReadException(message: String) : Exception(message) {
-    class WebReadingOff : NothingToReadException("From the web is turned off")
-    class TooLarge : NothingToReadException("That page is too large")
-    class TooManyImages : NothingToReadException("That page has too many pictures")
-    class NetworkFailed(cause: Throwable) : NothingToReadException(cause.message ?: "Couldn't reach that page")
-    class NoFeedFound : NothingToReadException("No RSS or Atom feed found on that page")
+/** Reading from the web is switched off in Settings. */
+class WebReadingOffException : IOException("Reading from the web is off")
+
+/** The site answered, but not with something readable, or the book can no longer grow. */
+class NothingToReadException(val kind: Kind) : IOException(kind.name) {
+    enum class Kind { NO_TEXT, NO_FEED, FEED_UNREADABLE, NO_CHAPTER, BOOK_GONE, BOOK_LOCKED }
 }
 
-private const val MAX_PAGE_BYTES = 8 * 1024 * 1024
-private const val MAX_IMAGES_PER_PAGE = 40
-private const val MAX_IMAGE_BYTES = 4 * 1024 * 1024
-private const val MAX_TOTAL_IMAGE_BYTES = 12 * 1024 * 1024
-
 /**
- * The network layer for "From the web". Keeps no cookie jar and no cache of its own - deliberately
- * separate from the manga NetworkHelper - and every request checks [WebSettings.enabled] first.
+ * Saves web pages, feed items and web novels as ordinary books. Pages are fetched with a client of
+ * its own that keeps no cookies and no cache, read into plain HTML with their pictures inside, and
+ * imported as files Folio owns. Nothing is fetched unless the user asks, and never while the
+ * setting is off.
  */
-class WebLibrary(private val context: Context, private val container: AppContainer) {
-
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(20.seconds)
-        .readTimeout(20.seconds)
-        .build()
-
-    private suspend fun requireEnabled() {
-        if (!container.settings.current().web.enabled) throw NothingToReadException.WebReadingOff()
+class WebLibrary(
+    private val context: Context,
+    private val settings: SettingsRepository,
+    private val imports: ImportManager,
+    private val library: LibraryRepository,
+    private val rescanner: MetadataRescanner,
+    private val cache: CacheStore,
+) {
+    private val client: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
+            .followRedirects(true)
+            .build()
     }
 
-    private suspend fun fetchText(url: String): Pair<String, String> = withContext(Dispatchers.IO) {
-        requireEnabled()
-        val response = try {
-            client.newCall(Request.Builder().url(url).build()).execute()
-        } catch (e: Exception) {
-            throw NothingToReadException.NetworkFailed(e)
-        }
-        response.use {
-            val body = it.body ?: throw NothingToReadException.NetworkFailed(IllegalStateException("Empty response"))
-            val bytes = readUpTo(body.byteStream(), MAX_PAGE_BYTES) ?: throw NothingToReadException.TooLarge()
-            String(bytes, Charsets.UTF_8) to (it.request.url.toString())
-        }
-    }
+    private val json = Json { ignoreUnknownKeys = true }
+    private val feedFile get() = File(context.filesDir, "web/feeds.json")
 
-    /** Saves a link as a book: title/author meta, and up to 40 inlined pictures, 4MB/12MB caps. */
+    @Serializable
+    private data class FeedCache(
+        val items: Map<String, List<FeedItem>> = emptyMap(),
+        /** Feed item links already saved, and the book each became. */
+        val saved: Map<String, Long> = emptyMap(),
+    )
+
+    // ---- Pages ---------------------------------------------------------------------------------
+
+    /** Saves one page as a book and returns its id. */
     suspend fun savePage(url: String): Long = withContext(Dispatchers.IO) {
-        val (html, finalUrl) = fetchText(url)
+        val (html, finalUrl) = fetch(normalise(url))
         val article = ArticleExtractor.extract(html, finalUrl)
-        val withImages = inlineImages(article.html)
-
-        val file = writeHtmlFile(
-            title = article.title ?: "Saved page",
-            author = article.author,
-            source = finalUrl,
-            bodyHtml = withImages,
-        )
-        container.imports.importOwn(android.net.Uri.fromFile(file).toString()).await() ?: -1L
+        if (Jsoup.parse(article.contentHtml).text().length < 80) {
+            throw NothingToReadException(NothingToReadException.Kind.NO_TEXT)
+        }
+        val body = buildString {
+            append("<h1>").append(escape(article.title)).append("</h1>\n")
+            val byline = listOfNotNull(article.author, article.site).joinToString(" · ")
+            if (byline.isNotEmpty()) append("<p><em>").append(escape(byline)).append("</em></p>\n")
+            append(embedImages(article.contentHtml, finalUrl))
+            append("\n<hr>\n<p><small>").append(escape(savedLine(finalUrl))).append("</small></p>\n")
+        }
+        importHtml(article.title, article.author, finalUrl, body)
     }
 
-    private suspend fun inlineImages(html: String): String = withContext(Dispatchers.IO) {
-        val document = org.jsoup.Jsoup.parseBodyFragment(html)
-        var totalBytes = 0
-        var count = 0
-        document.select("img").forEach { img ->
-            if (count >= MAX_IMAGES_PER_PAGE || totalBytes >= MAX_TOTAL_IMAGE_BYTES) {
-                img.remove()
-                return@forEach
+    // ---- Feeds ---------------------------------------------------------------------------------
+
+    /** Adds a feed from its own address or from a site that advertises one. */
+    suspend fun addFeed(url: String): SavedFeed = withContext(Dispatchers.IO) {
+        val address = normalise(url)
+        val (text, finalUrl) = fetch(address)
+        FeedParser.parse(text, finalUrl)?.let { feed ->
+            return@withContext remember(SavedFeed(finalUrl, feed.title, feed.siteUrl), feed.items)
+        }
+        // A web page: try the feeds it advertises.
+        for (candidate in FeedParser.discover(text, finalUrl)) {
+            val (xml, at) = runCatching { fetch(candidate) }.getOrNull() ?: continue
+            val feed = FeedParser.parse(xml, at) ?: continue
+            return@withContext remember(SavedFeed(at, feed.title, feed.siteUrl), feed.items)
+        }
+        throw NothingToReadException(NothingToReadException.Kind.NO_FEED)
+    }
+
+    private suspend fun remember(feed: SavedFeed, items: List<FeedItem>): SavedFeed {
+        settings.update { s ->
+            val others = s.web.feeds.filterNot { it.url == feed.url }
+            s.copy(web = s.web.copy(feeds = others + feed))
+        }
+        storeItems(feed.url, items)
+        return feed
+    }
+
+    suspend fun removeFeed(feed: SavedFeed) {
+        settings.update { s -> s.copy(web = s.web.copy(feeds = s.web.feeds.filterNot { it.url == feed.url })) }
+        withContext(Dispatchers.IO) {
+            val cache = readFeedCache()
+            writeFeedCache(cache.copy(items = cache.items - feed.url))
+        }
+    }
+
+    suspend fun refreshFeed(feed: SavedFeed): List<FeedItem> = withContext(Dispatchers.IO) {
+        val (text, finalUrl) = fetch(feed.url)
+        val parsed = FeedParser.parse(text, finalUrl) ?: throw NothingToReadException(NothingToReadException.Kind.FEED_UNREADABLE)
+        storeItems(feed.url, parsed.items)
+        parsed.items
+    }
+
+    suspend fun cachedItems(feedUrl: String): List<FeedItem> = withContext(Dispatchers.IO) {
+        readFeedCache().items[feedUrl].orEmpty()
+    }
+
+    /** Feed item links already saved as books. */
+    suspend fun savedItems(): Map<String, Long> = withContext(Dispatchers.IO) { readFeedCache().saved }
+
+    suspend fun saveItem(item: FeedItem): Long {
+        val bookId = savePage(item.link)
+        withContext(Dispatchers.IO) {
+            val cache = readFeedCache()
+            writeFeedCache(cache.copy(saved = cache.saved + (item.link to bookId)))
+        }
+        return bookId
+    }
+
+    private fun storeItems(feedUrl: String, items: List<FeedItem>) {
+        val cache = readFeedCache()
+        writeFeedCache(cache.copy(items = cache.items + (feedUrl to items.take(MAX_FEED_ITEMS))))
+    }
+
+    @Synchronized
+    private fun readFeedCache(): FeedCache =
+        runCatching { json.decodeFromString<FeedCache>(feedFile.readText()) }.getOrDefault(FeedCache())
+
+    @Synchronized
+    private fun writeFeedCache(cache: FeedCache) {
+        feedFile.parentFile?.mkdirs()
+        val tmp = File(feedFile.parentFile, "feeds.json.tmp")
+        tmp.writeText(json.encodeToString(cache))
+        tmp.renameTo(feedFile)
+    }
+
+    // ---- Web novels ----------------------------------------------------------------------------
+
+    /**
+     * Starts a web novel from one chapter's address: that chapter and up to [ahead] following
+     * ones become a book; later chapters are added by [updateNovel].
+     */
+    suspend fun startNovel(url: String, ahead: Int = 10, onProgress: (Int) -> Unit = {}): Long =
+        withContext(Dispatchers.IO) {
+            val chapters = fetchChapters(normalise(url), ahead + 1, emptySet(), onProgress)
+            val first = chapters.firstOrNull() ?: throw NothingToReadException(NothingToReadException.Kind.NO_CHAPTER)
+            val title = novelTitle(first.article)
+            val body = buildString {
+                append("<h1>").append(escape(title)).append("</h1>\n")
+                first.article.site?.let { append("<p><em>").append(escape(it)).append("</em></p>\n") }
+                chapters.forEach { append(it.html) }
             }
+            val bookId = importHtml(title, first.article.author, first.article.url, body)
+            val last = chapters.last()
+            settings.update { s ->
+                val novel = WebNovel(bookId, title, last.article.url, last.article.next, chapters.size, System.currentTimeMillis())
+                s.copy(web = s.web.copy(novels = s.web.novels.filterNot { it.bookId == bookId } + novel))
+            }
+            bookId
+        }
+
+    /** Adds the chapters published since the last check; returns how many were added. */
+    suspend fun updateNovel(novel: WebNovel, max: Int = 25, onProgress: (Int) -> Unit = {}): Int =
+        withContext(Dispatchers.IO) {
+            val book = library.entity(novel.bookId) ?: throw NothingToReadException(NothingToReadException.Kind.BOOK_GONE)
+            val path = Uri.parse(book.uri).path?.let(::File)?.takeIf { it.canWrite() }
+                ?: throw NothingToReadException(NothingToReadException.Kind.BOOK_LOCKED)
+
+            // With no next link last time, look at the last chapter again: the site may have added one.
+            val start = novel.nextUrl ?: ArticleExtractor.extract(fetch(novel.lastUrl).first, novel.lastUrl).next
+            if (start == null) {
+                markChecked(novel, novel.lastUrl, null, 0)
+                return@withContext 0
+            }
+            val chapters = fetchChapters(start, max, setOf(novel.lastUrl), onProgress)
+            if (chapters.isEmpty()) {
+                markChecked(novel, novel.lastUrl, start, 0)
+                return@withContext 0
+            }
+            val existing = path.readText()
+            val at = existing.lastIndexOf("</body>").takeIf { it >= 0 } ?: existing.length
+            val added = chapters.joinToString("") { it.html }
+            val tmp = File(path.parentFile, path.name + ".tmp")
+            tmp.writeText(existing.substring(0, at) + added + existing.substring(at))
+            if (!tmp.renameTo(path)) {
+                tmp.delete()
+                throw IOException("Could not update the book's file")
+            }
+            library.entity(novel.bookId)?.let { rescanner.rescan(it) }
+            val last = chapters.last()
+            markChecked(novel, last.article.url, last.article.next, chapters.size)
+            chapters.size
+        }
+
+    suspend fun forgetNovel(novel: WebNovel) {
+        settings.update { s -> s.copy(web = s.web.copy(novels = s.web.novels.filterNot { it.bookId == novel.bookId })) }
+    }
+
+    private suspend fun markChecked(novel: WebNovel, lastUrl: String, nextUrl: String?, added: Int) {
+        settings.update { s ->
+            s.copy(
+                web = s.web.copy(
+                    novels = s.web.novels.map {
+                        if (it.bookId != novel.bookId) it
+                        else it.copy(lastUrl = lastUrl, nextUrl = nextUrl, chapters = it.chapters + added, checkedAt = System.currentTimeMillis())
+                    },
+                ),
+            )
+        }
+    }
+
+    private class Chapter(val article: Article, val html: String)
+
+    private suspend fun fetchChapters(start: String, max: Int, seen: Set<String>, onProgress: (Int) -> Unit): List<Chapter> {
+        val chapters = mutableListOf<Chapter>()
+        val visited = seen.toMutableSet()
+        var url: String? = start
+        while (url != null && chapters.size < max && visited.add(url.substringBefore('#'))) {
+            kotlin.coroutines.coroutineContext.ensureActive()
+            val (html, finalUrl) = try {
+                fetch(url)
+            } catch (e: IOException) {
+                // Keep what was fetched so far; the next check carries on from here.
+                if (chapters.isEmpty()) throw e else break
+            }
+            val article = ArticleExtractor.extract(html, finalUrl)
+            if (Jsoup.parse(article.contentHtml).text().length < 40) break
+            val chapterHtml = buildString {
+                append("<h2>").append(escape(article.title)).append("</h2>\n")
+                append(embedImages(article.contentHtml, finalUrl))
+                append('\n')
+            }
+            chapters += Chapter(article, chapterHtml)
+            onProgress(chapters.size)
+            url = article.next
+        }
+        return chapters
+    }
+
+    /** The novel's name: the site's name for it when the chapter title carries one, else the title. */
+    private fun novelTitle(first: Article): String {
+        val title = first.title
+        val split = title.split(Regex(" [-–—:|] "))
+        return if (split.size > 1 && split.first().length >= 3 && !split.first().contains(Regex("(?i)chapter|ch\\.|第"))) {
+            split.first()
+        } else {
+            title
+        }
+    }
+
+    // ---- Shared --------------------------------------------------------------------------------
+
+    private suspend fun fetch(url: String): Pair<String, String> {
+        if (!settings.current().web.enabled) throw WebReadingOffException()
+        val request = Request.Builder()
+            .url(url)
+            .header("User-Agent", USER_AGENT)
+            .header("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,application/rss+xml,*/*;q=0.8")
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) throw IOException("The site answered ${response.code}")
+            val body = response.body
+            val bytes = body.byteStream().use { readLimited(it, MAX_PAGE_BYTES) }
+            val charset = body.contentType()?.charset() ?: sniffCharset(bytes)
+            return String(bytes, charset) to response.request.url.toString()
+        }
+    }
+
+    /** Pictures are fetched and kept inside the page; ones that cannot be fetched are left out. */
+    private suspend fun embedImages(html: String, pageUrl: String): String {
+        val fragment = Jsoup.parseBodyFragment(html)
+        val budget = ImageBudget(MAX_PAGE_IMAGES_BYTES)
+        fragment.select("img").forEachIndexed { index, img ->
+            kotlin.coroutines.coroutineContext.ensureActive()
             val src = img.attr("src")
-            val bytes = try {
-                client.newCall(Request.Builder().url(src).build()).execute().use { response ->
-                    response.body?.byteStream()?.let { readUpTo(it, MAX_IMAGE_BYTES) }
-                }
-            } catch (e: Exception) {
-                null
-            }
-            if (bytes == null) {
-                img.remove()
+            val data = if (index < MAX_IMAGES) runCatching { fetchImage(src, pageUrl) }.getOrNull() else null
+            val uri = budget.dataUri(data)
+            if (uri != null) {
+                img.attr("src", uri)
             } else {
-                val mime = app.folio.reader.text.convert.guessImageMimeType(bytes)
-                img.attr("src", "data:$mime;base64,${java.util.Base64.getEncoder().encodeToString(bytes)}")
-                totalBytes += bytes.size
-                count++
+                val alt = img.attr("alt").trim()
+                if (alt.isNotEmpty()) img.replaceWith(org.jsoup.nodes.TextNode("[$alt]")) else img.remove()
             }
         }
-        document.body().html()
+        return fragment.body().html()
     }
 
-    suspend fun feedItems(feedUrl: String): ParsedFeed = withContext(Dispatchers.IO) {
-        val (xml, _) = fetchText(feedUrl)
-        FeedParser.parse(xml)
-    }
-
-    /** A page's own address, if it's not a feed but links to one. */
-    suspend fun discoverFeed(pageUrl: String): String? = withContext(Dispatchers.IO) {
-        val (html, finalUrl) = fetchText(pageUrl)
-        FeedParser.discover(html, finalUrl)
-    }
-
-    suspend fun saveFeedItem(item: FeedItem): Long = savePage(item.link)
-
-    /** Fetches [chapterUrl] and the next [extraChapters] via rel=next, as one book. */
-    suspend fun saveWebNovel(chapterUrl: String, title: String, extraChapters: Int = 10): Long = withContext(Dispatchers.IO) {
-        var url: String? = chapterUrl
-        var count = 0
-        val chapters = mutableListOf<String>()
-        while (url != null && count <= extraChapters) {
-            val (html, finalUrl) = fetchText(url)
-            val article = ArticleExtractor.extract(html, finalUrl)
-            chapters += inlineImages(article.html)
-            url = article.nextUrl
-            count++
+    private suspend fun fetchImage(url: String, referer: String): ByteArray? {
+        if (!settings.current().web.enabled) throw WebReadingOffException()
+        val request = Request.Builder().url(url).header("User-Agent", USER_AGENT).header("Referer", referer).build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return null
+            return response.body.byteStream().use { readLimited(it, MAX_IMAGE_BYTES) }
         }
-        val file = writeHtmlFile(title = title, author = null, source = chapterUrl, bodyHtml = chapters.joinToString("<hr>"))
-        container.imports.importOwn(android.net.Uri.fromFile(file).toString()).await() ?: -1L
     }
 
-    /** Appends up to 25 more chapters to an existing web novel's file, following rel=next. */
-    suspend fun checkForNewChapters(novel: WebNovel): WebNovel = withContext(Dispatchers.IO) {
-        var url: String? = novel.nextUrl ?: return@withContext novel
-        var added = 0
-        val appended = StringBuilder()
-        while (url != null && added < 25) {
-            val (html, finalUrl) = fetchText(url)
-            val article = ArticleExtractor.extract(html, finalUrl)
-            appended.append("<hr>").append(inlineImages(article.html))
-            url = article.nextUrl
-            added++
+    private fun readLimited(input: java.io.InputStream, limit: Int): ByteArray {
+        val out = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(16 * 1024)
+        while (true) {
+            val read = input.read(buffer)
+            if (read < 0) break
+            out.write(buffer, 0, read)
+            if (out.size() > limit) throw IOException("Too large")
         }
-        if (added > 0) {
-            appendToBook(novel.bookId, appended.toString())
-            container.database.books().get(novel.bookId)?.let { container.rescanner.rescan(it) }
-        }
-        novel.copy(nextUrl = url, chapters = novel.chapters + added, checkedAt = System.currentTimeMillis())
+        return out.toByteArray()
     }
 
-    /** Appends [html] right before `</body>` of the book's own file, atomically (write, then rename). */
-    private fun appendToBook(bookId: Long, html: String) {
-        val book = runBlocking { container.database.books().get(bookId) } ?: return
-        val uri = android.net.Uri.parse(book.uri)
-        val path = uri.path ?: return
-        val file = File(path)
-        if (!file.exists()) return
-        val content = file.readText()
-        val insertAt = content.lastIndexOf("</body>")
-        val updated = if (insertAt >= 0) content.substring(0, insertAt) + html + content.substring(insertAt) else content + html
-        val temp = File(file.parentFile, "${file.name}.tmp")
-        temp.writeText(updated)
-        temp.renameTo(file)
+    private fun sniffCharset(bytes: ByteArray): java.nio.charset.Charset {
+        val head = String(bytes, 0, minOf(bytes.size, 2048), Charsets.ISO_8859_1)
+        val declared = Regex("(?i)charset=[\"']?([\\w-]+)").find(head)?.groupValues?.get(1)
+            ?: Regex("(?i)encoding=[\"']([\\w-]+)").find(head)?.groupValues?.get(1)
+        return declared?.let { runCatching { java.nio.charset.Charset.forName(it) }.getOrNull() } ?: Charsets.UTF_8
     }
 
-    private fun writeHtmlFile(title: String, author: String?, source: String, bodyHtml: String): File {
-        val dir = File(context.filesDir, "web").apply { mkdirs() }
-        val safeName = title.replace(Regex("""[/\\:*?"<>|]"""), "_").take(80).ifBlank { "page" }
-        val file = File(dir, "$safeName-${System.currentTimeMillis()}.html")
+    private suspend fun importHtml(title: String, author: String?, source: String, body: String): Long {
+        val staging = File(cache.tmpDir, "web").apply { mkdirs() }
+        staging.listFiles()?.filter { System.currentTimeMillis() - it.lastModified() > 86_400_000L }?.forEach { it.delete() }
+        val name = fileName(title)
+        val file = File(staging, name)
         file.writeText(
             buildString {
-                append("<html><head><title>").append(escape(title)).append("</title>")
-                author?.let { append("<meta name=\"author\" content=\"").append(escape(it)).append("\">") }
-                append("<meta name=\"folio-source\" content=\"").append(escape(source)).append("\">")
-                append("</head><body>").append(bodyHtml).append("</body></html>")
+                append("<!doctype html>\n<html><head><meta charset=\"utf-8\">\n")
+                append("<title>").append(escape(title)).append("</title>\n")
+                author?.let { append("<meta name=\"author\" content=\"").append(escape(it)).append("\">\n") }
+                append("<meta name=\"folio-source\" content=\"").append(escape(source)).append("\">\n")
+                append("</head><body>\n").append(body).append("</body></html>\n")
             },
         )
-        return file
+        val bookId = imports.importOwn(Uri.fromFile(file).toString())
+        file.delete()
+        return bookId ?: throw IOException("The page could not be added to the library")
     }
 
-    private fun escape(text: String) = text.replace("&", "&amp;").replace("\"", "&quot;")
+    private fun fileName(title: String): String {
+        val safe = title.replace(Regex("[\\\\/:*?\"<>|\\p{Cntrl}]"), " ").replace(Regex("\\s+"), " ").trim().take(80)
+        return (safe.ifEmpty { "Web page" }) + " (" + System.currentTimeMillis().toString(36) + ").html"
+    }
 
-    /** Reads at most [max] bytes; returns null if the stream has more than that. */
-    private fun readUpTo(stream: java.io.InputStream, max: Int): ByteArray? = stream.use {
-        val buffer = java.io.ByteArrayOutputStream(minOf(max, 64 * 1024))
-        val chunk = ByteArray(8192)
-        var total = 0
-        while (true) {
-            val read = it.read(chunk)
-            if (read < 0) break
-            total += read
-            if (total > max) return null
-            buffer.write(chunk, 0, read)
-        }
-        buffer.toByteArray()
+    private fun savedLine(url: String): String =
+        "Saved from $url on " + DateFormat.getDateInstance(DateFormat.MEDIUM).format(Date())
+
+    private fun normalise(url: String): String {
+        val trimmed = url.trim()
+        return if (trimmed.startsWith("http://", true) || trimmed.startsWith("https://", true)) trimmed else "https://$trimmed"
+    }
+
+    private fun escape(value: String): String = value
+        .replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+
+    companion object {
+        private const val USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Mobile Safari/537.36"
+        private const val MAX_PAGE_BYTES = 8 * 1024 * 1024
+        private const val MAX_IMAGE_BYTES = 4 * 1024 * 1024
+        private const val MAX_PAGE_IMAGES_BYTES = 12L * 1024 * 1024
+        private const val MAX_IMAGES = 40
+        private const val MAX_FEED_ITEMS = 100
+
+        /** The first web address in shared text ("Look at this: https://…"). */
+        fun findUrl(text: String?): String? =
+            text?.let { Regex("https?://[^\\s<>\"']+").find(it)?.value?.trimEnd('.', ',', ')', ']', '!', '?') }
     }
 }

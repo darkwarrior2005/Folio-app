@@ -41,15 +41,17 @@ import androidx.room.RoomDatabase
         ExtensionRepoEntity::class,
         TrustedExtensionEntity::class,
     ],
-    version = 5,
+    version = MangaTablesRebuild.VERSION,
     exportSchema = true,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
         // Collection soundtracks: two new tables, nothing existing changes.
         AutoMigration(from = 3, to = 4),
-        // Manga library, extension repositories and trust: five new tables, nothing existing changes.
+        // The manga library, its downloads and extension bookkeeping: new tables only.
         AutoMigration(from = 4, to = 5),
+        // 5 and 6 go to 7 through MangaTablesRebuild (below). Version 5 has two layouts in the
+        // wild: Folio 1.6.0 to 1.6.3 shipped a different one, so the step reads what is there.
     ],
 )
 abstract class FolioDatabase : RoomDatabase() {
@@ -71,6 +73,7 @@ abstract class FolioDatabase : RoomDatabase() {
             Room.databaseBuilder(context, FolioDatabase::class.java, NAME)
                 // WAL keeps progress writes cheap and crash-safe while the reader is open.
                 .setJournalMode(JournalMode.WRITE_AHEAD_LOGGING)
+                .addMigrations(MangaTablesRebuild(from = 5), MangaTablesRebuild(from = 6))
                 .build()
     }
 }

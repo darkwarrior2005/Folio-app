@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -37,6 +35,7 @@ import androidx.fragment.app.FragmentActivity
 import app.folio.R
 import app.folio.data.settings.PinHasher
 import app.folio.data.settings.PrivacySettings
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.screens.reader.findActivity
 
 @Composable
@@ -82,7 +81,7 @@ fun LockScreen(privacy: PrivacySettings, onUnlocked: () -> Unit) {
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Icon(
-            Icons.Rounded.Lock,
+            FolioIcons.Lock,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.primary,
         )

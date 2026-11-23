@@ -3,19 +3,21 @@ package eu.kanade.tachiyomi.network.interceptor
 import okhttp3.Interceptor
 import okhttp3.Response
 
-class UserAgentInterceptor(private val defaultUserAgentProvider: () -> String) : Interceptor {
-
-    private var currentUserAgent: String = defaultUserAgentProvider()
+class UserAgentInterceptor(
+    private val defaultUserAgentProvider: () -> String,
+) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val originalRequest = chain.request()
-        if (originalRequest.header("User-Agent").isNullOrEmpty()) {
+
+        return if (originalRequest.header("User-Agent").isNullOrEmpty()) {
             val newRequest = originalRequest.newBuilder()
                 .removeHeader("User-Agent")
-                .addHeader("User-Agent", currentUserAgent)
+                .addHeader("User-Agent", defaultUserAgentProvider())
                 .build()
-            return chain.proceed(newRequest)
+            chain.proceed(newRequest)
+        } else {
+            chain.proceed(originalRequest)
         }
-        return chain.proceed(originalRequest)
     }
 }

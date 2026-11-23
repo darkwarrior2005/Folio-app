@@ -15,11 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CollectionsBookmark
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.Timer
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -48,6 +43,7 @@ import androidx.compose.ui.unit.dp
 import app.folio.R
 import app.folio.data.db.PomodoroPhase
 import app.folio.pomodoro.PomodoroState
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.util.Format
 import kotlinx.coroutines.delay
 import java.time.LocalTime
@@ -140,14 +136,14 @@ private fun HeaderActions(
     val tint = MaterialTheme.colorScheme.onSurface
     Row(modifier, horizontalArrangement = Arrangement.End) {
         IconButton(onClick = onSearch) {
-            Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.action_search), tint = tint)
+            Icon(FolioIcons.Search, contentDescription = stringResource(R.string.action_search), tint = tint)
         }
         IconButton(onClick = onSettings) {
-            Icon(Icons.Rounded.Settings, contentDescription = stringResource(R.string.nav_settings), tint = tint)
+            Icon(FolioIcons.Settings, contentDescription = stringResource(R.string.nav_settings), tint = tint)
         }
         IconButton(onClick = onLibraryHub) {
             Icon(
-                Icons.Rounded.CollectionsBookmark,
+                FolioIcons.CollectionsBookmark,
                 contentDescription = stringResource(R.string.home_your_library),
                 tint = tint,
             )
@@ -223,7 +219,7 @@ private fun HeaderClock(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    Icons.Rounded.Timer,
+                    FolioIcons.Timer,
                     contentDescription = null,
                     tint = if (pomodoro.active) {
                         MaterialTheme.colorScheme.primary

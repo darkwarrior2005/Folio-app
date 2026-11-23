@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="windows-1251"?>
+<FictionBook xmlns="http://www.gribuser.ru/xml/fictionbook/2.0" xmlns:l="http://www.w3.org/1999/xlink">
+<description><title-info><author><first-name>Лев</first-name><last-name>Толстой</last-name></author>
+<book-title>Война и мир</book-title><coverpage><image l:href="#cover.png"/></coverpage></title-info></description>
+<body><title><p>Война и мир</p></title>
+<section><title><p>Часть первая</p></title><epigraph><p>Эпиграф</p></epigraph>
+<p>Ну, князь, <emphasis>Генуя</emphasis> и <strong>Лукка</strong>.</p><empty-line/>
+<image l:href="#cover.png"/>
+<poem><stanza><v>строка один</v><v>строка два</v></stanza></poem>
+<section><title><p>Глава 1</p></title><p>Текст главы.</p></section></section></body>
+<body name="notes"><section><title><p>Примечания</p></title><p>Note.</p></section></body>
+<binary id="cover.png" content-type="image/png">iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==</binary>
+</FictionBook>

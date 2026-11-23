@@ -1,9 +1,5 @@
 package app.folio.ui.screens.reader
 
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import app.folio.core.model.ZoomLimit
-import app.folio.reader.api.ZoomNotice
 import android.app.Activity
 import android.content.pm.ActivityInfo
 import android.view.WindowManager
@@ -14,39 +10,24 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
-import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.List
-import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.BookmarkBorder
-import androidx.compose.material.icons.rounded.ChevronLeft
-import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.Draw
-import androidx.compose.material.icons.rounded.Gesture
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Timer
-import androidx.compose.material.icons.rounded.Tune
-import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -65,9 +46,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLifecycleOwner
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowInsetsControllerCompat
@@ -77,9 +62,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.folio.R
 import app.folio.core.model.DrawnNoteProximity
 import app.folio.core.model.ReaderFamily
+import app.folio.core.model.ZoomLimit
 import app.folio.data.settings.OrientationLock
+import app.folio.reader.api.ZoomNotice
 import app.folio.ui.components.EmptyState
 import app.folio.ui.folioViewModel
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.util.Format
 import kotlinx.coroutines.delay
 
@@ -163,6 +151,21 @@ fun ReaderScreen(
     }
 
     // Keep the screen awake and control system bars for an undistracted page.
+    // A soft sound and tick on each new page, when asked for.
+    val view = LocalView.current
+    val pageFeedback = remember { PageTurnFeedback() }
+    DisposableEffect(pageFeedback) { onDispose { pageFeedback.release() } }
+    var lastPage by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(position.page) {
+        val page = position.page
+        val before = lastPage
+        lastPage = page
+        val behavior = settings.behavior
+        if (before != null && page != null && page != before && (behavior.pageTurnSound || behavior.pageTurnHaptic)) {
+            pageFeedback.play(view, behavior.pageTurnSound, behavior.pageTurnHaptic)
+        }
+    }
+
     DisposableEffect(settings.behavior.keepScreenOn, activity) {
         val window = activity?.window
         if (settings.behavior.keepScreenOn) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
@@ -255,11 +258,6 @@ fun ReaderScreen(
                 if (settings.behavior.readingRuler && !scribble.active) {
                     ReadingRuler()
                 }
-                PageTurnEffect(
-                    page = position.page ?: 0,
-                    soundEnabled = settings.behavior.pageTurnSound,
-                    hapticEnabled = settings.behavior.pageTurnHaptic,
-                )
 
                 val inkOnPages = state.engine.family == ReaderFamily.PDF || state.engine.family == ReaderFamily.COMIC
                 val chromeVisible = controlsVisible && !focusMode && !scribble.active
@@ -315,7 +313,7 @@ fun ReaderScreen(
                                             },
                                         )
                                     },
-                                    leadingIcon = { Icon(Icons.Rounded.Gesture, contentDescription = null) },
+                                    leadingIcon = { Icon(FolioIcons.Gesture, contentDescription = null) },
                                     colors = androidx.compose.material3.AssistChipDefaults.assistChipColors(
                                         containerColor = MaterialTheme.colorScheme.surface,
                                     ),
@@ -326,7 +324,7 @@ fun ReaderScreen(
                                 Spacer(Modifier.width(8.dp))
                             }
                             SmallFloatingActionButton(onClick = { viewModel.startScribble(inkOnPages) }) {
-                                Icon(Icons.Rounded.Draw, contentDescription = stringResource(R.string.scribble_draw))
+                                Icon(FolioIcons.Draw, contentDescription = stringResource(R.string.scribble_draw))
                             }
                         }
                         ReaderBottomBar(
@@ -343,15 +341,16 @@ fun ReaderScreen(
                     }
                 }
 
-                selection?.takeIf { !scribble.active }?.let { current ->
+                // Annotation (highlights, notes) is a PDF-only feature -- not EPUB, not comic.
+                selection?.takeIf { !scribble.active && state.engine.family == ReaderFamily.PDF }?.let { current ->
                     SelectionToolbar(
                         selection = current,
+                        bookTitle = state.title,
                         onHighlight = { color -> viewModel.highlightSelection(color) },
                         onNote = { sheet = ReaderSheet.NOTE },
                         onDelete = viewModel::deleteSelectedHighlight,
                         onDismiss = viewModel::clearSelection,
                         modifier = Modifier.align(Alignment.BottomCenter),
-                        bookTitle = state.title,
                     )
                 }
 
@@ -401,7 +400,7 @@ fun ReaderScreen(
                             .padding(8.dp),
                     ) {
                         Icon(
-                            Icons.Rounded.VisibilityOff,
+                            FolioIcons.VisibilityOff,
                             contentDescription = stringResource(R.string.reader_focus_mode),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
                         )
@@ -559,7 +558,7 @@ private fun ReaderTopBar(
     ) {
         IconButton(onClick = onBack) {
             Icon(
-                Icons.AutoMirrored.Rounded.ArrowBack,
+                FolioIcons.ArrowBack,
                 contentDescription = stringResource(R.string.action_back),
             )
         }
@@ -583,26 +582,29 @@ private fun ReaderTopBar(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                imageVector = if (bookmarked) Icons.Rounded.Bookmark else Icons.Rounded.BookmarkBorder,
+                imageVector = if (bookmarked) FolioIcons.Bookmark else FolioIcons.BookmarkBorder,
                 contentDescription = stringResource(R.string.action_add_bookmark),
                 tint = if (bookmarked) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        IconButton(onClick = onBookmarksList) {
+            Icon(FolioIcons.Bookmarks, contentDescription = stringResource(R.string.book_bookmarks))
+        }
         IconButton(onClick = onToc) {
             Icon(
-                Icons.AutoMirrored.Rounded.List,
+                FolioIcons.List,
                 contentDescription = stringResource(R.string.reader_contents),
             )
         }
         IconButton(onClick = onSearch) {
-            Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.action_search))
+            Icon(FolioIcons.Search, contentDescription = stringResource(R.string.action_search))
         }
         IconButton(onClick = onSettings) {
-            Icon(Icons.Rounded.Tune, contentDescription = stringResource(R.string.reader_settings))
+            Icon(FolioIcons.Tune, contentDescription = stringResource(R.string.reader_settings))
         }
         IconButton(onClick = onFocusMode) {
             Icon(
-                Icons.Rounded.VisibilityOff,
+                FolioIcons.VisibilityOff,
                 contentDescription = stringResource(R.string.reader_focus_mode),
             )
         }
@@ -641,7 +643,7 @@ private fun ReaderBottomBar(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             IconButton(onClick = onPrevious) {
-                Icon(Icons.Rounded.ChevronLeft, contentDescription = null)
+                Icon(FolioIcons.ChevronLeft, contentDescription = null)
             }
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (zoomLabel != null) {
@@ -653,24 +655,30 @@ private fun ReaderBottomBar(
                     Spacer(Modifier.width(8.dp))
                 }
                 val canJump = (position.pageCount ?: 0) > 0
+                val goToPageLabel = stringResource(R.string.reader_go_to_page)
                 Text(
                     text = position.pageLabel(),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .clip(CircleShape)
-                        .clickable(enabled = canJump, onClick = onGoToPage)
+                        .combinedClickable(
+                            enabled = canJump,
+                            onClick = {},
+                            onLongClick = onGoToPage,
+                            onLongClickLabel = goToPageLabel,
+                        )
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                 )
                 Spacer(Modifier.width(12.dp))
                 TextButton(onClick = onPomodoro) {
-                    Icon(Icons.Rounded.Timer, contentDescription = null)
+                    Icon(FolioIcons.Timer, contentDescription = null)
                     Spacer(Modifier.width(4.dp))
                     Text(pomodoroLabel ?: stringResource(R.string.pomodoro_title))
                 }
             }
             IconButton(onClick = onNext) {
-                Icon(Icons.Rounded.ChevronRight, contentDescription = null)
+                Icon(FolioIcons.ChevronRight, contentDescription = null)
             }
         }
     }
@@ -691,8 +699,8 @@ internal fun app.folio.reader.api.BookOpenError.messageRes(): Int = when (this) 
     app.folio.reader.api.BookOpenError.FileMissing -> R.string.error_file_missing
     app.folio.reader.api.BookOpenError.PermissionDenied -> R.string.error_permission
     app.folio.reader.api.BookOpenError.Unsupported -> R.string.error_unsupported
-    app.folio.reader.api.BookOpenError.Empty -> R.string.error_empty
     app.folio.reader.api.BookOpenError.DrmProtected -> R.string.error_drm
+    app.folio.reader.api.BookOpenError.Empty -> R.string.error_empty
     app.folio.reader.api.BookOpenError.PasswordRequired -> R.string.dialog_password_title
     app.folio.reader.api.BookOpenError.WrongPassword -> R.string.dialog_password_wrong
     is app.folio.reader.api.BookOpenError.Corrupted -> R.string.error_corrupted

@@ -1,6 +1,5 @@
 package app.folio.ui.screens.home
 
-import app.folio.ui.components.rememberNotificationPermissionRequest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -9,29 +8,25 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.LocalFireDepartment
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -64,7 +59,9 @@ import app.folio.ui.components.BookCover
 import app.folio.ui.components.EmptyState
 import app.folio.ui.components.ProgressBar
 import app.folio.ui.components.SectionHeader
+import app.folio.ui.components.rememberNotificationPermissionRequest
 import app.folio.ui.folioViewModel
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.theme.LocalSpacing
 import app.folio.ui.util.Format
 import java.time.LocalTime
@@ -132,6 +129,7 @@ private fun BookshelfHome(
     onLibrarySmart: (SmartCollection) -> Unit,
 ) {
     val bookshelf by viewModel.bookshelf.collectAsStateWithLifecycle()
+    val resume by viewModel.resume.collectAsStateWithLifecycle()
     val pomodoro by viewModel.pomodoro.collectAsStateWithLifecycle()
     val remaining by viewModel.pomodoroRemaining.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
@@ -159,15 +157,10 @@ private fun BookshelfHome(
                 onSettings = onSettings,
                 onLibraryHub = onCollections,
             )
+            if (bookshelf?.isEmpty == false) {
+                WelcomeBackCard(book = resume, onOpenBook = onOpenBook, surprise = viewModel::surprise)
+            }
             HomeMusicCard(onOpenMusicLibrary = onMusic)
-
-            val resumeBook by viewModel.resumeBook.collectAsStateWithLifecycle()
-            val surpriseBook by viewModel.surpriseBook.collectAsStateWithLifecycle()
-            WelcomeBackCard(
-                resumeBook = surpriseBook ?: resumeBook,
-                onResume = { onOpenBook(it); viewModel.clearSurprise() },
-                onSurprise = viewModel::surprise,
-            )
 
             val shelf = bookshelf
             when {
@@ -208,6 +201,7 @@ private fun ClassicHome(
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val continueReading by viewModel.continueReading.collectAsStateWithLifecycle()
+    val resume by viewModel.resume.collectAsStateWithLifecycle()
     val recentlyAdded by viewModel.recentlyAdded.collectAsStateWithLifecycle()
     val collections by viewModel.collections.collectAsStateWithLifecycle()
     val queue by viewModel.queue.collectAsStateWithLifecycle()
@@ -242,21 +236,18 @@ private fun ClassicHome(
             }
         }
 
+        if (recentlyAdded.isNotEmpty()) {
+            item(key = "welcome-back") {
+                WelcomeBackCard(book = resume, onOpenBook = onOpenBook, surprise = viewModel::surprise)
+            }
+        }
+
         // Only take a list slot while music is queued, so an idle player leaves no gap.
         if (nowPlaying.hasQueue) {
             item(key = "now-playing") { app.folio.ui.screens.music.NowPlayingBar() }
         }
 
-        item(key = "welcome-back") {
-            val resumeBook by viewModel.resumeBook.collectAsStateWithLifecycle()
-            val surpriseBook by viewModel.surpriseBook.collectAsStateWithLifecycle()
-            WelcomeBackCard(
-                resumeBook = surpriseBook ?: resumeBook,
-                onResume = { onOpenBook(it); viewModel.clearSurprise() },
-                onSurprise = viewModel::surprise,
-            )
-        }
-
+        var todayStatsShown = false
         settings.home.sections.forEach { section ->
             when (section) {
                 HomeSection.CONTINUE_READING -> if (continueReading.isNotEmpty()) {
@@ -276,62 +267,21 @@ private fun ClassicHome(
                     }
                 }
 
-                HomeSection.READING_GOAL -> if (stats.goalMinutes != null) {
-                    item(key = "goal") {
-                        Card(
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            ),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable(onClick = onStats),
-                        ) {
-                            Column(Modifier.padding(spacing.cardPadding)) {
-                                Text(
-                                    text = stringResource(R.string.home_goal),
-                                    style = MaterialTheme.typography.titleSmall,
-                                )
-                                Spacer(Modifier.height(8.dp))
-                                Text(
-                                    text = "${Format.shortDuration(stats.todayMs)} / ${stats.goalMinutes}m",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                )
-                                Spacer(Modifier.height(10.dp))
-                                ProgressBar(stats.goalProgress, Modifier.fillMaxWidth(), height = 6.dp)
-                            }
-                        }
-                    }
-                }
-
-                HomeSection.STREAK -> if (stats.streak > 0) {
-                    item(key = "streak") {
-                        Row(
-                            Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .clickable(onClick = onStats)
-                                .padding(spacing.cardPadding),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Icon(
-                                Icons.Rounded.LocalFireDepartment,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
+                // Reading goal and streak share one row; whichever of the two the user put
+                // first in their section list is where it renders, so there's no duplicate.
+                HomeSection.READING_GOAL, HomeSection.STREAK -> if (!todayStatsShown) {
+                    todayStatsShown = true
+                    val showGoal = HomeSection.READING_GOAL in settings.home.sections && stats.goalMinutes != null
+                    val showStreak = HomeSection.STREAK in settings.home.sections && stats.streak > 0
+                    if (showGoal || showStreak) {
+                        item(key = "today-stats") {
+                            TodayStatsRow(
+                                stats = stats,
+                                showGoal = showGoal,
+                                showStreak = showStreak,
+                                context = context,
+                                onClick = onStats,
                             )
-                            Column {
-                                Text(
-                                    text = pluralStringResource(R.plurals.home_streak_days, stats.streak, stats.streak),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Text(
-                                    text = "${stringResource(R.string.stats_today)}: " +
-                                        Format.duration(context, stats.todayMs),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
                         }
                     }
                 }
@@ -460,7 +410,7 @@ private fun ClassicHome(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Icon(
-                                    Icons.Rounded.Timer,
+                                    FolioIcons.Timer,
                                     contentDescription = null,
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
@@ -491,7 +441,7 @@ private fun ClassicHome(
                                     modifier = Modifier.size(56.dp),
                                 ) {
                                     Icon(
-                                        Icons.Rounded.PlayArrow,
+                                        FolioIcons.PlayArrow,
                                         // The label stays available to screen readers.
                                         contentDescription = stringResource(R.string.action_start_focus),
                                         modifier = Modifier.size(32.dp),
@@ -568,6 +518,76 @@ private fun ClassicHome(
                     actionLabel = stringResource(R.string.action_import),
                     onAction = { openFiles.launch(arrayOf("*/*")) },
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Reading goal and streak in one card instead of two: a left half and a right half when both
+ * are on, or one half-width's worth of content stretched full width when only one is.
+ */
+@Composable
+private fun TodayStatsRow(
+    stats: HomeStats,
+    showGoal: Boolean,
+    showStreak: Boolean,
+    context: android.content.Context,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val spacing = LocalSpacing.current
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+    ) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .padding(spacing.cardPadding),
+            horizontalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            if (showGoal) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = stringResource(R.string.home_goal),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = "${Format.shortDuration(stats.todayMs)} / ${stats.goalMinutes}m",
+                        style = MaterialTheme.typography.headlineSmall,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    ProgressBar(stats.goalProgress, Modifier.fillMaxWidth(), height = 6.dp)
+                }
+            }
+            if (showStreak) {
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Icon(
+                        FolioIcons.LocalFireDepartment,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
+                    Column {
+                        Text(
+                            text = pluralStringResource(R.plurals.home_streak_days, stats.streak, stats.streak),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            text = "${stringResource(R.string.stats_today)}: " +
+                                Format.duration(context, stats.todayMs),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
             }
         }
     }

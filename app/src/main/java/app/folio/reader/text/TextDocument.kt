@@ -6,6 +6,13 @@ import app.folio.core.model.TocEntry
 import app.folio.data.files.FileAccess
 import app.folio.reader.api.BookOpenError
 import app.folio.reader.api.BookSource
+import app.folio.reader.text.convert.ConversionException
+import app.folio.reader.text.convert.ConvertedBook
+import app.folio.reader.text.convert.DocxConverter
+import app.folio.reader.text.convert.Fb2Converter
+import app.folio.reader.text.convert.MobiConverter
+import app.folio.reader.text.convert.OdtConverter
+import app.folio.reader.text.convert.RtfConverter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.commonmark.parser.Parser
@@ -31,6 +38,7 @@ class TextDocument(
     val blocks: List<TextBlock>,
     val title: String?,
     val author: String?,
+    /** The book's own cover picture, for converted formats that carry one. */
     val cover: ByteArray? = null,
 ) {
     fun bodyHtml(): String = buildString {
@@ -59,14 +67,15 @@ class TextDocument(
 
     companion object {
         const val MAX_BYTES = 12L * 1024 * 1024
+
+        /** Converted formats hold their pictures inside the file, so they may be larger. */
         const val MAX_CONVERTED_BYTES = 80L * 1024 * 1024
 
         suspend fun load(files: FileAccess, source: BookSource): Result<TextDocument> =
             withContext(Dispatchers.IO) {
                 val info = files.info(source.uri)
                     ?: return@withContext Result.failure(TextOpenException(BookOpenError.FileMissing))
-                val maxBytes = if (source.format.isConverted) MAX_CONVERTED_BYTES else MAX_BYTES
-                if (info.size > maxBytes) {
+                if (info.size > if (source.format.isConverted) MAX_CONVERTED_BYTES else MAX_BYTES) {
                     return@withContext Result.failure(
                         TextOpenException(BookOpenError.Failed("file too large")),
                     )
@@ -79,27 +88,26 @@ class TextDocument(
 
                 if (source.format.isConverted) {
                     return@withContext try {
-                        val converted = when (source.format) {
-                            BookFormat.MOBI -> app.folio.reader.text.convert.MobiConverter.convert(raw)
-                            BookFormat.FB2 -> app.folio.reader.text.convert.Fb2Converter.convert(
-                                raw,
-                                isZipped = source.fileName.substringAfterLast('.', "").lowercase() in setOf("zip", "fbz"),
-                            )
-                            BookFormat.DOCX -> app.folio.reader.text.convert.DocxConverter.convert(raw)
-                            BookFormat.ODT -> app.folio.reader.text.convert.OdtConverter.convert(raw)
-                            BookFormat.RTF -> app.folio.reader.text.convert.RtfConverter.convert(raw)
-                            else -> error("unreachable")
+                        val document = fromConverted(convert(source.format, raw))
+                        if (document.blocks.isEmpty()) {
+                            Result.failure(TextOpenException(BookOpenError.Empty))
+                        } else {
+                            Result.success(document)
                         }
-                        Result.success(fromConverted(converted))
-                    } catch (e: app.folio.reader.text.convert.ConversionException) {
-                        val error = when (e.reason) {
-                            app.folio.reader.text.convert.ConversionReason.DRM -> BookOpenError.DrmProtected
-                            app.folio.reader.text.convert.ConversionReason.UNSUPPORTED -> BookOpenError.Unsupported
-                            app.folio.reader.text.convert.ConversionReason.DAMAGED -> BookOpenError.Corrupted(e.message)
-                        }
-                        Result.failure(TextOpenException(error))
+                    } catch (e: ConversionException) {
+                        Result.failure(
+                            TextOpenException(
+                                when (e.reason) {
+                                    ConversionException.Reason.DRM -> BookOpenError.DrmProtected
+                                    ConversionException.Reason.UNSUPPORTED -> BookOpenError.Unsupported
+                                    ConversionException.Reason.DAMAGED -> BookOpenError.Corrupted(e.message)
+                                },
+                            ),
+                        )
                     } catch (e: Exception) {
                         Result.failure(TextOpenException(BookOpenError.Corrupted(e.message)))
+                    } catch (e: OutOfMemoryError) {
+                        Result.failure(TextOpenException(BookOpenError.Failed("out of memory")))
                     }
                 }
 
@@ -119,39 +127,6 @@ class TextDocument(
                     Result.failure(TextOpenException(BookOpenError.Corrupted(e.message)))
                 }
             }
-
-        /**
-         * A converted format's HTML is cleaned the same way [fromHtml] cleans a plain HTML file,
-         * then its container divs/sections are unwrapped into separate blocks (the converters
-         * emit flat paragraphs/headings already, but may still be wrapped e.g. in a root <div>),
-         * so a chapter isn't one giant block.
-         */
-        fun fromConverted(converted: app.folio.reader.text.convert.ConvertedBook): TextDocument {
-            val cleanedBody = Jsoup.clean(converted.html, "", RICH_SAFELIST)
-            val document = Jsoup.parseBodyFragment(cleanedBody)
-            unwrapContainers(document.body())
-            val blocks = document.body().children().toBlocks()
-            if (blocks.isEmpty()) throw IllegalStateException("Converted document has no content")
-            return TextDocument(blocks, converted.title, converted.author, converted.cover)
-        }
-
-        /**
-         * Replaces a div/section wrapper that holds no text of its own with its own children, so
-         * a converted book's chapter isn't one giant block. Jsoup's `Node.unwrap()` removes the
-         * element and reparents its children in its place.
-         */
-        private fun unwrapContainers(root: Element) {
-            var again = true
-            while (again) {
-                again = false
-                root.select("div, section").toList().forEach { wrapper ->
-                    if (wrapper.ownText().isBlank() && wrapper.parent() != null) {
-                        wrapper.unwrap()
-                        again = true
-                    }
-                }
-            }
-        }
 
         private fun ByteArray.decodeText(): String {
             // Honour a BOM when present, otherwise assume UTF-8 and fall back to Latin-1.
@@ -208,6 +183,39 @@ class TextDocument(
             return TextDocument(blocks, title, author)
         }
 
+        fun convert(format: BookFormat, bytes: ByteArray): ConvertedBook = when (format) {
+            BookFormat.MOBI -> MobiConverter.convert(bytes)
+            BookFormat.FB2 -> Fb2Converter.convert(bytes)
+            BookFormat.DOCX -> DocxConverter.convert(bytes)
+            BookFormat.ODT -> OdtConverter.convert(bytes)
+            BookFormat.RTF -> RtfConverter.convert(bytes)
+            else -> throw ConversionException(ConversionException.Reason.UNSUPPORTED)
+        }
+
+        /**
+         * A converted book: cleaned like any HTML file, with wrapping containers opened up so each
+         * paragraph and heading is its own block (whole chapters often sit inside one div).
+         */
+        fun fromConverted(book: ConvertedBook): TextDocument {
+            val parsed: Document = Jsoup.parse(book.html)
+            parsed.select("script, style, iframe, object, embed, noscript, link, meta, head").remove()
+            val cleanedBody = Jsoup.clean(parsed.body().html(), "", RICH_SAFELIST)
+            val document = Jsoup.parseBodyFragment(cleanedBody)
+            val blocks = document.body().children().flatMap { it.unwrapped() }.toBlocks()
+            val title = book.title ?: blocks.firstOrNull { it.headingLevel == 1 }?.text
+            return TextDocument(blocks, title, book.author, book.cover)
+        }
+
+        private val CONTAINERS = setOf("div", "section", "article", "main", "body", "header", "footer", "aside", "nav")
+
+        private fun Element.unwrapped(): List<Element> {
+            val hasBlocks = children().any { it.isBlock }
+            if (tagName() !in CONTAINERS || !hasBlocks) return listOf(this)
+            // Loose text beside the blocks would be lost when unwrapping; keep such containers whole.
+            if (textNodes().any { it.text().isNotBlank() }) return listOf(this)
+            return children().flatMap { it.unwrapped() }
+        }
+
         private fun List<Element>.toBlocks(): List<TextBlock> =
             mapNotNull { element ->
                 val text = element.text().trim()
@@ -231,8 +239,8 @@ class TextDocument(
         private val RICH_SAFELIST: Safelist = Safelist.relaxed()
             .addTags("figure", "figcaption", "section", "article", "hr", "s")
             .addAttributes(":all", "id", "class")
-            .addAttributes("img", "src")
-            .addProtocols("img", "src", "http", "https", "data")
+            // Pictures inside converted books travel as data URIs.
+            .addProtocols("img", "src", "data")
     }
 }
 

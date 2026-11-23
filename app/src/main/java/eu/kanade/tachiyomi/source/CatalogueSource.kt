@@ -2,27 +2,64 @@ package eu.kanade.tachiyomi.source
 
 import eu.kanade.tachiyomi.source.model.FilterList
 import eu.kanade.tachiyomi.source.model.MangasPage
+import eu.kanade.tachiyomi.source.model.Page
+import eu.kanade.tachiyomi.source.model.SChapter
+import eu.kanade.tachiyomi.source.model.SManga
+import eu.kanade.tachiyomi.source.model.SMangaUpdate
+import eu.kanade.tachiyomi.util.lang.awaitSingle
+import kotlinx.coroutines.async
+import kotlinx.coroutines.supervisorScope
 import rx.Observable
 
+/**
+ * A source that can be browsed and searched. The suspend methods default to the older RxJava
+ * ones so extensions that have not been updated keep working.
+ */
 interface CatalogueSource : Source {
 
-    /** Languages this source's entries are in, such as "en" for only English manga. */
-    val lang: String
-
-    /** Whether this source supports latest listing. */
-    val supportsLatest: Boolean
-
-    @Suppress("DEPRECATION")
-    fun fetchPopularManga(page: Int): Observable<MangasPage> =
-        throw IllegalStateException("Not used")
+    /**
+     * An ISO 639-1 language code (two lower-case letters).
+     */
+    override val lang: String
 
     @Suppress("DEPRECATION")
-    fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> =
-        throw IllegalStateException("Not used")
+    override suspend fun getPopularManga(page: Int): MangasPage = fetchPopularManga(page).awaitSingle()
 
     @Suppress("DEPRECATION")
-    fun fetchLatestUpdates(page: Int): Observable<MangasPage> =
-        throw IllegalStateException("Not used")
+    override suspend fun getLatestUpdates(page: Int): MangasPage = fetchLatestUpdates(page).awaitSingle()
 
-    fun getFilterList(): FilterList = FilterList()
+    @Suppress("DEPRECATION")
+    override suspend fun getSearchManga(
+        page: Int,
+        query: String,
+        filters: FilterList,
+    ): MangasPage = fetchSearchManga(page, query, filters).awaitSingle()
+
+    @Suppress("DEPRECATION")
+    override suspend fun getMangaUpdate(
+        manga: SManga,
+        chapters: List<SChapter>,
+        fetchDetails: Boolean,
+        fetchChapters: Boolean,
+    ): SMangaUpdate = supervisorScope {
+        val asyncManga = if (fetchDetails) async { fetchMangaDetails(manga).awaitSingle() } else null
+        val asyncChapters = if (fetchChapters) async { fetchChapterList(manga).awaitSingle() } else null
+        SMangaUpdate(asyncManga?.await() ?: manga, asyncChapters?.await() ?: chapters)
+    }
+
+    @Suppress("DEPRECATION")
+    override suspend fun getPageList(chapter: SChapter): List<Page> = fetchPageList(chapter).awaitSingle()
+
+    @Deprecated("Use the suspend API instead", ReplaceWith("getPopularManga"))
+    fun fetchPopularManga(page: Int): Observable<MangasPage> = throw UnsupportedOperationException()
+
+    @Deprecated("Use the suspend API instead", ReplaceWith("getSearchManga"))
+    fun fetchSearchManga(
+        page: Int,
+        query: String,
+        filters: FilterList,
+    ): Observable<MangasPage> = throw UnsupportedOperationException()
+
+    @Deprecated("Use the suspend API instead", ReplaceWith("getLatestUpdates"))
+    fun fetchLatestUpdates(page: Int): Observable<MangasPage> = throw UnsupportedOperationException()
 }

@@ -5,12 +5,6 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material.icons.rounded.Insights
-import androidx.compose.material.icons.rounded.Settings
-import androidx.compose.material.icons.rounded.StickyNote2
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -21,6 +15,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,12 +34,22 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import app.folio.R
 import app.folio.data.settings.AppSettings
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.nav.Routes
 import app.folio.ui.screens.details.BookDetailsScreen
 import app.folio.ui.screens.details.EditBookScreen
 import app.folio.ui.screens.home.HomeScreen
 import app.folio.ui.screens.library.LibraryScreen
 import app.folio.ui.screens.lock.LockScreen
+import app.folio.ui.screens.manga.BrowseSourcesScreen
+import app.folio.ui.screens.manga.DownloadQueueScreen
+import app.folio.ui.screens.manga.ExtensionsScreen
+import app.folio.ui.screens.manga.MangaDetailsScreen
+import app.folio.ui.screens.manga.MangaReaderScreen
+import app.folio.ui.screens.manga.MangaSettingsScreen
+import app.folio.ui.screens.manga.SourceCatalogueScreen
+import app.folio.ui.screens.manga.SourceSettingsScreen
+import app.folio.ui.screens.manga.SourceWebViewScreen
 import app.folio.ui.screens.notes.NotesScreen
 import app.folio.ui.screens.organize.CategoriesScreen
 import app.folio.ui.screens.organize.CollectionDetailScreen
@@ -59,6 +64,7 @@ import app.folio.ui.screens.settings.AboutScreen
 import app.folio.ui.screens.settings.AccessibilityScreen
 import app.folio.ui.screens.settings.BackupScreen
 import app.folio.ui.screens.settings.LibrarySettingsScreen
+import app.folio.ui.screens.settings.NightLightScreen
 import app.folio.ui.screens.settings.NotificationSettingsScreen
 import app.folio.ui.screens.settings.PomodoroSettingsScreen
 import app.folio.ui.screens.settings.PrivacyScreen
@@ -70,14 +76,15 @@ import app.folio.ui.screens.stats.StatsScreen
 
 private const val TABLET_WIDTH_DP = 840
 
-data class BottomDestination(val route: String, val labelRes: Int, val icon: ImageVector)
+/** A bottom-bar tab; [selectedIcon] is the filled version shown while the tab is open. */
+data class BottomDestination(val route: String, val labelRes: Int, val icon: ImageVector, val selectedIcon: ImageVector)
 
 private val destinations = listOf(
-    BottomDestination(Routes.HOME, R.string.nav_home, Icons.Rounded.Home),
-    BottomDestination(Routes.LIBRARY, R.string.nav_library, Icons.AutoMirrored.Rounded.MenuBook),
-    BottomDestination(Routes.NOTES, R.string.nav_notes, Icons.Rounded.StickyNote2),
-    BottomDestination(Routes.STATS, R.string.nav_stats, Icons.Rounded.Insights),
-    BottomDestination(Routes.SETTINGS, R.string.nav_settings, Icons.Rounded.Settings),
+    BottomDestination(Routes.HOME, R.string.nav_home, FolioIcons.Home, FolioIcons.HomeFilled),
+    BottomDestination(Routes.LIBRARY, R.string.nav_library, FolioIcons.MenuBook, FolioIcons.MenuBookFilled),
+    BottomDestination(Routes.NOTES, R.string.nav_notes, FolioIcons.StickyNote2, FolioIcons.StickyNoteFilled),
+    BottomDestination(Routes.STATS, R.string.nav_stats, FolioIcons.Insights, FolioIcons.InsightsFilled),
+    BottomDestination(Routes.SETTINGS, R.string.nav_settings, FolioIcons.Settings, FolioIcons.SettingsFilled),
 )
 
 @Composable
@@ -104,12 +111,11 @@ fun FolioRoot(
         }
     }
 
-    val rootContainer = LocalContainer.current
-    val pendingWebUrl by rootContainer.pendingWebUrl.collectAsStateWithLifecycle()
-    LaunchedEffect(pendingWebUrl) {
-        pendingWebUrl?.let { url ->
-            navController.navigate(Routes.web(url))
-            rootContainer.pendingWebUrl.value = null
+    // A link shared to Folio opens "From the web", which takes the address.
+    val sharedUrl by LocalContainer.current.pendingWebUrl.collectAsState()
+    LaunchedEffect(sharedUrl) {
+        if (sharedUrl != null && navController.currentDestination?.route != Routes.WEB) {
+            navController.navigate(Routes.WEB)
         }
     }
 
@@ -126,7 +132,12 @@ fun FolioRoot(
                         NavigationRailItem(
                             selected = currentRoute == destination.route,
                             onClick = { navController.navigateTop(destination.route) },
-                            icon = { Icon(destination.icon, contentDescription = null) },
+                            icon = {
+                                Icon(
+                                    if (currentRoute == destination.route) destination.selectedIcon else destination.icon,
+                                    contentDescription = null,
+                                )
+                            },
                             label = { Text(stringResource(destination.labelRes)) },
                         )
                     }
@@ -141,7 +152,12 @@ fun FolioRoot(
                                 NavigationBarItem(
                                     selected = currentRoute == destination.route,
                                     onClick = { navController.navigateTop(destination.route) },
-                                    icon = { Icon(destination.icon, contentDescription = null) },
+                                    icon = {
+                                Icon(
+                                    if (currentRoute == destination.route) destination.selectedIcon else destination.icon,
+                                    contentDescription = null,
+                                )
+                            },
                                     label = { Text(stringResource(destination.labelRes)) },
                                 )
                             }
@@ -203,16 +219,19 @@ private fun FolioNavHost(
                 var selected by remember { mutableStateOf<Long?>(null) }
                 Row(Modifier.fillMaxSize()) {
                     Box(Modifier.weight(0.42f)) {
-                        app.folio.ui.screens.library.LibraryWithMangaTabs(
+                        LibraryScreen(
                             onOpenBook = { navController.navigate(Routes.reader(it)) },
                             onBookDetails = { selected = it },
                             onSearch = { navController.navigate(Routes.SEARCH) },
                             onMusic = { navController.navigate(Routes.MUSIC) },
-                            onCollections = { navController.navigate(Routes.COLLECTIONS) },
                             onOpenManga = { navController.navigate(Routes.mangaDetails(it)) },
-                            onFindMangaOnline = { navController.navigate(Routes.MANGA_BROWSE) },
-                            onMangaExtensions = { navController.navigate(Routes.mangaExtensions(0)) },
+                            onBrowseManga = { navController.navigate(Routes.MANGA_BROWSE) },
+                            onFromWeb = { navController.navigate(Routes.WEB) },
+                            onMangaExtensions = { navController.navigate(Routes.mangaExtensions()) },
                             onMangaDownloads = { navController.navigate(Routes.MANGA_DOWNLOADS) },
+                            onEnableMangaSources = { navController.navigate(Routes.MANGA_SETTINGS) },
+                            onOpenSourceWebView = { navController.navigate(Routes.mangaWebView(it)) },
+                            onCollections = { navController.navigate(Routes.COLLECTIONS) },
                         )
                     }
                     Box(Modifier.weight(0.58f)) {
@@ -230,18 +249,138 @@ private fun FolioNavHost(
                     }
                 }
             } else {
-                app.folio.ui.screens.library.LibraryWithMangaTabs(
+                LibraryScreen(
                     onOpenBook = { navController.navigate(Routes.reader(it)) },
                     onBookDetails = { navController.navigate(Routes.bookDetails(it)) },
                     onSearch = { navController.navigate(Routes.SEARCH) },
                     onMusic = { navController.navigate(Routes.MUSIC) },
-                    onCollections = { navController.navigate(Routes.COLLECTIONS) },
                     onOpenManga = { navController.navigate(Routes.mangaDetails(it)) },
-                    onFindMangaOnline = { navController.navigate(Routes.MANGA_BROWSE) },
-                    onMangaExtensions = { navController.navigate(Routes.mangaExtensions(0)) },
+                    onBrowseManga = { navController.navigate(Routes.MANGA_BROWSE) },
+                            onFromWeb = { navController.navigate(Routes.WEB) },
+                    onMangaExtensions = { navController.navigate(Routes.mangaExtensions()) },
                     onMangaDownloads = { navController.navigate(Routes.MANGA_DOWNLOADS) },
+                    onEnableMangaSources = { navController.navigate(Routes.MANGA_SETTINGS) },
+                    onOpenSourceWebView = { navController.navigate(Routes.mangaWebView(it)) },
+                    onCollections = { navController.navigate(Routes.COLLECTIONS) },
                 )
             }
+        }
+
+        composable(Routes.WEB) {
+            app.folio.ui.screens.web.WebScreen(
+                onBack = { navController.popBackStack() },
+                onOpenBook = { navController.navigate(Routes.reader(it)) },
+            )
+        }
+
+        composable(Routes.MANGA_BROWSE) {
+            BrowseSourcesScreen(
+                onBack = { navController.popBackStack() },
+                onOpenSource = { navController.navigate(Routes.mangaSource(it)) },
+                onExtensions = { navController.navigate(Routes.mangaExtensions()) },
+                onOpenSettings = { navController.navigate(Routes.mangaSourceSettings(it)) },
+            )
+        }
+
+        composable(
+            route = Routes.MANGA_EXTENSIONS,
+            arguments = listOf(
+                navArgument(Routes.EXTENSIONS_TAB) {
+                    type = NavType.IntType
+                    defaultValue = 0
+                },
+            ),
+        ) { entry ->
+            val tab = entry.arguments?.getInt(Routes.EXTENSIONS_TAB) ?: 0
+            ExtensionsScreen(
+                onBack = { navController.popBackStack() },
+                onOpenMangaSettings = { navController.navigate(Routes.MANGA_SETTINGS) },
+                onOpenSourceSettings = { navController.navigate(Routes.mangaSourceSettings(it)) },
+                initialTab = tab,
+            )
+        }
+
+        composable(Routes.MANGA_DOWNLOADS) {
+            DownloadQueueScreen(onBack = { navController.popBackStack() })
+        }
+
+        composable(Routes.MANGA_SETTINGS) {
+            MangaSettingsScreen(
+                onBack = { navController.popBackStack() },
+                onRepos = { navController.navigate(Routes.mangaExtensions(1)) },
+                onExtensions = { navController.navigate(Routes.mangaExtensions(0)) },
+            )
+        }
+
+        composable(
+            route = Routes.MANGA_SOURCE,
+            arguments = listOf(navArgument(Routes.SOURCE_ID) { type = NavType.LongType }),
+        ) { entry ->
+            val sourceId = entry.arguments?.getLong(Routes.SOURCE_ID) ?: return@composable
+            SourceCatalogueScreen(
+                sourceId = sourceId,
+                onBack = { navController.popBackStack() },
+                onOpenManga = { navController.navigate(Routes.mangaDetails(it)) },
+                onOpenWebView = { navController.navigate(Routes.mangaWebView(sourceId)) },
+                onOpenSettings = { navController.navigate(Routes.mangaSourceSettings(sourceId)) },
+            )
+        }
+
+        composable(
+            route = Routes.MANGA_SOURCE_SETTINGS,
+            arguments = listOf(navArgument(Routes.SOURCE_ID) { type = NavType.LongType }),
+        ) { entry ->
+            val sourceId = entry.arguments?.getLong(Routes.SOURCE_ID) ?: return@composable
+            SourceSettingsScreen(sourceId = sourceId, onBack = { navController.popBackStack() })
+        }
+
+        composable(
+            route = Routes.MANGA_WEBVIEW,
+            arguments = listOf(
+                navArgument(Routes.SOURCE_ID) { type = NavType.LongType },
+                navArgument(Routes.WEB_URL) {
+                    type = NavType.StringType
+                    nullable = true
+                    defaultValue = null
+                },
+            ),
+        ) { entry ->
+            val sourceId = entry.arguments?.getLong(Routes.SOURCE_ID) ?: return@composable
+            SourceWebViewScreen(
+                sourceId = sourceId,
+                url = entry.arguments?.getString(Routes.WEB_URL),
+                onBack = { navController.popBackStack() },
+            )
+        }
+
+        composable(
+            route = Routes.MANGA_DETAILS,
+            arguments = listOf(navArgument(Routes.MANGA_ID) { type = NavType.LongType }),
+        ) { entry ->
+            val mangaId = entry.arguments?.getLong(Routes.MANGA_ID) ?: return@composable
+            MangaDetailsScreen(
+                mangaId = mangaId,
+                onBack = { navController.popBackStack() },
+                onReadChapter = { navController.navigate(Routes.mangaReader(it)) },
+                onOpenWebView = { navController.navigate(Routes.mangaWebView(it)) },
+                onOpenSourceSettings = { navController.navigate(Routes.mangaSourceSettings(it)) },
+                onSearchOtherSources = { title ->
+                    container.pendingMangaSearch.value = title
+                    navController.navigateTop(Routes.LIBRARY)
+                },
+            )
+        }
+
+        composable(
+            route = Routes.MANGA_READER,
+            arguments = listOf(navArgument(Routes.CHAPTER_ID) { type = NavType.LongType }),
+        ) { entry ->
+            val chapterId = entry.arguments?.getLong(Routes.CHAPTER_ID) ?: return@composable
+            MangaReaderScreen(
+                chapterId = chapterId,
+                onBack = { navController.popBackStack() },
+                onOpenWebView = { navController.navigate(Routes.mangaWebView(it)) },
+            )
         }
 
         composable(Routes.NOTES) {
@@ -414,9 +553,6 @@ private fun FolioNavHost(
         }
 
         composable(Routes.THEMES) { ThemePickerScreen(onBack = { navController.popBackStack() }) }
-        composable(Routes.NIGHT_LIGHT) {
-            app.folio.ui.screens.settings.NightLightScreen(onBack = { navController.popBackStack() })
-        }
         composable(Routes.READER_SETTINGS) { ReaderDefaultsScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.LIBRARY_SETTINGS) { LibrarySettingsScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.POMODORO_SETTINGS) { PomodoroSettingsScreen(onBack = { navController.popBackStack() }) }
@@ -424,6 +560,7 @@ private fun FolioNavHost(
         composable(Routes.STORAGE) { StorageScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.PRIVACY) { PrivacyScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.ACCESSIBILITY) { AccessibilityScreen(onBack = { navController.popBackStack() }) }
+        composable(Routes.NIGHT_LIGHT) { NightLightScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.ABOUT) { AboutScreen(onBack = { navController.popBackStack() }) }
         composable(Routes.BACKUP) {
             BackupScreen(
@@ -431,108 +568,5 @@ private fun FolioNavHost(
                 onReset = { navController.navigateTop(Routes.HOME) },
             )
         }
-
-        composable(Routes.MANGA_BROWSE) {
-            app.folio.ui.screens.manga.BrowseSourcesScreen(
-                onOpenSource = { navController.navigate(Routes.mangaSource(it)) },
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(
-            route = Routes.MANGA_SOURCE,
-            arguments = listOf(navArgument(Routes.SOURCE_ID) { type = NavType.LongType }),
-        ) { entry ->
-            val sourceId = entry.arguments?.getLong(Routes.SOURCE_ID) ?: return@composable
-            app.folio.ui.screens.manga.SourceCatalogueScreen(
-                sourceId = sourceId,
-                onOpenManga = { navController.navigate(Routes.mangaDetails(it)) },
-                onNeedsWebView = { url -> navController.navigate(Routes.mangaSourceWebView(sourceId, url)) },
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(
-            route = Routes.MANGA_DETAILS,
-            arguments = listOf(navArgument(Routes.MANGA_ID) { type = NavType.LongType }),
-        ) { entry ->
-            val mangaId = entry.arguments?.getLong(Routes.MANGA_ID) ?: return@composable
-            app.folio.ui.screens.manga.MangaDetailsScreen(
-                mangaId = mangaId,
-                onBack = { navController.popBackStack() },
-                onReadChapter = { manga, chapter -> navController.navigate(Routes.mangaReader(manga, chapter)) },
-                onNeedsWebView = { sourceId, url -> navController.navigate(Routes.mangaSourceWebView(sourceId, url)) },
-            )
-        }
-        composable(
-            route = Routes.MANGA_READER,
-            arguments = listOf(
-                navArgument(Routes.MANGA_ID) { type = NavType.LongType },
-                navArgument(Routes.CHAPTER_ID) { type = NavType.LongType },
-            ),
-        ) { entry ->
-            val mangaId = entry.arguments?.getLong(Routes.MANGA_ID) ?: return@composable
-            val chapterId = entry.arguments?.getLong(Routes.CHAPTER_ID) ?: return@composable
-            app.folio.ui.screens.manga.MangaReaderScreen(
-                mangaId = mangaId,
-                chapterId = chapterId,
-                onBack = { navController.popBackStack() },
-            )
-        }
-        composable(Routes.MANGA_DOWNLOADS) {
-            app.folio.ui.screens.manga.DownloadQueueScreen(onBack = { navController.popBackStack() })
-        }
-        composable(Routes.MANGA_SETTINGS) {
-            app.folio.ui.screens.manga.MangaSettingsScreen(onBack = { navController.popBackStack() })
-        }
-        composable(
-            route = Routes.MANGA_EXTENSIONS,
-            arguments = listOf(navArgument(Routes.EXTENSIONS_TAB) { type = NavType.IntType; defaultValue = 0 }),
-        ) { entry ->
-            val tab = entry.arguments?.getInt(Routes.EXTENSIONS_TAB) ?: 0
-            app.folio.ui.screens.manga.ExtensionsScreen(
-                initialTab = tab,
-                onBack = { navController.popBackStack() },
-                onSourceSettings = { navController.navigate(Routes.mangaSourceSettings(it)) },
-            )
-        }
-        composable(
-            route = Routes.MANGA_SOURCE_SETTINGS,
-            arguments = listOf(navArgument(Routes.PACKAGE_NAME) { type = NavType.StringType }),
-        ) { entry ->
-            val packageName = entry.arguments?.getString(Routes.PACKAGE_NAME) ?: return@composable
-            app.folio.ui.screens.manga.SourceSettingsScreen(packageName, onBack = { navController.popBackStack() })
-        }
-        composable(
-            route = Routes.MANGA_SOURCE_WEBVIEW,
-            arguments = listOf(
-                navArgument(Routes.SOURCE_ID) { type = NavType.LongType },
-                navArgument(Routes.SOURCE_URL) { type = NavType.StringType; defaultValue = "" },
-            ),
-        ) { entry ->
-            val sourceId = entry.arguments?.getLong(Routes.SOURCE_ID) ?: return@composable
-            val url = entry.arguments?.getString(Routes.SOURCE_URL).orEmpty()
-            val source = container.sourceManager.get(sourceId) as? eu.kanade.tachiyomi.source.online.HttpSource
-            if (source != null) {
-                app.folio.ui.screens.manga.SourceWebViewScreen(
-                    url = if (url.isBlank()) source.baseUrl else url,
-                    userAgent = source.headers["User-Agent"] ?: "",
-                    headers = source.headers.toMap(),
-                    sourceName = source.name,
-                    onDone = { navController.popBackStack() },
-                )
-            }
-        }
-
-        composable(
-            route = Routes.WEB,
-            arguments = listOf(navArgument(Routes.SOURCE_URL) { type = NavType.StringType; defaultValue = "" }),
-        ) { entry ->
-            app.folio.ui.screens.web.WebScreen(
-                initialUrl = entry.arguments?.getString(Routes.SOURCE_URL)?.takeIf { it.isNotBlank() },
-                onBack = { navController.popBackStack() },
-                onOpenBook = { navController.navigate(Routes.reader(it)) },
-            )
-        }
     }
 }
-
-private fun okhttp3.Headers.toMap(): Map<String, String> = names().associateWith { get(it).orEmpty() }

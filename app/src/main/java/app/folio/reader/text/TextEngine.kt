@@ -14,6 +14,7 @@ import app.folio.reader.api.ReaderEngine
 import app.folio.reader.api.ReaderHost
 import app.folio.reader.api.TextChunk
 import app.folio.reader.api.TextExtractor
+import app.folio.reader.comic.ComicSources
 
 class TextEngine(private val files: FileAccess) : ReaderEngine {
     override val family = ReaderFamily.TEXT
@@ -30,16 +31,19 @@ class TextEngine(private val files: FileAccess) : ReaderEngine {
 
 class TextMetadataExtractor(private val files: FileAccess) : MetadataExtractor {
 
+    private companion object {
+        const val COVER_WIDTH = 600
+    }
+
     override suspend fun extract(source: BookSource): Result<ExtractedMetadata> {
         val document = TextDocument.load(files, source).getOrElse { return Result.failure(it) }
         val title = document.title?.trim()?.takeIf { it.isNotBlank() && it.length <= 120 }
             ?: MetadataResolver.titleFromFileName(source.fileName)
-        val cover = document.cover?.let { app.folio.reader.comic.ComicSources.decode(it, 600) }
         return Result.success(
             ExtractedMetadata(
                 metadata = BookMetadata(title = title, author = document.author),
                 pageCount = document.blocks.size,
-                cover = cover,
+                cover = document.cover?.let { ComicSources.decode(it, COVER_WIDTH) },
             ),
         )
     }

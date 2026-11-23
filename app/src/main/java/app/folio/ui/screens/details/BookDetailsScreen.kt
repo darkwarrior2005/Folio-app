@@ -18,18 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Bookmark
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.FileDownload
-import androidx.compose.material.icons.rounded.Folder
-import androidx.compose.material.icons.rounded.MenuBook
-import androidx.compose.material.icons.rounded.PlaylistAdd
-import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.StarBorder
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -69,6 +57,7 @@ import app.folio.ui.components.ProgressBar
 import app.folio.ui.components.SectionHeader
 import app.folio.ui.components.TextInputDialog
 import app.folio.ui.folioViewModel
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.screens.library.PickerDialog
 import app.folio.ui.screens.library.label
 import app.folio.ui.theme.LocalSpacing
@@ -125,21 +114,21 @@ fun BookDetailsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            FolioIcons.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                         )
                     }
                 },
                 actions = {
                     IconButton(onClick = { onEdit(bookId) }) {
-                        Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.action_edit))
+                        Icon(FolioIcons.Edit, contentDescription = stringResource(R.string.action_edit))
                     }
                     IconButton(onClick = viewModel::toggleFavorite) {
                         Icon(
                             imageVector = if (current?.favorite == true) {
-                                Icons.Rounded.Star
+                                FolioIcons.Star
                             } else {
-                                Icons.Rounded.StarBorder
+                                FolioIcons.StarBorder
                             },
                             contentDescription = stringResource(R.string.action_favorite),
                             tint = if (current?.favorite == true) {
@@ -254,7 +243,7 @@ fun BookDetailsScreen(
                             modifier = Modifier.weight(1f),
                             enabled = available,
                         ) {
-                            Icon(Icons.Rounded.MenuBook, contentDescription = null)
+                            Icon(FolioIcons.MenuBook, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text(
                                 stringResource(
@@ -263,7 +252,7 @@ fun BookDetailsScreen(
                             )
                         }
                         OutlinedButton(onClick = viewModel::toggleQueue) {
-                            Icon(Icons.Rounded.PlaylistAdd, contentDescription = null)
+                            Icon(FolioIcons.PlaylistAdd, contentDescription = null)
                             Spacer(Modifier.width(6.dp))
                             Text(
                                 stringResource(
@@ -327,7 +316,7 @@ fun BookDetailsScreen(
                             AssistChip(
                                 onClick = { viewModel.removeFromCollection(entry.collection.id) },
                                 label = { Text(entry.collection.name) },
-                                leadingIcon = { Icon(Icons.Rounded.Folder, contentDescription = null) },
+                                leadingIcon = { Icon(FolioIcons.Folder, contentDescription = null) },
                             )
                         }
                         AssistChip(
@@ -427,7 +416,7 @@ fun BookDetailsScreen(
                     }
                     if (bookmarks.isNotEmpty() || highlights.isNotEmpty() || notes.isNotEmpty()) {
                         TextButton(onClick = { exportNotes.launch("${current.title}.md") }) {
-                            Icon(Icons.Rounded.FileDownload, contentDescription = null)
+                            Icon(FolioIcons.FileDownload, contentDescription = null)
                             Spacer(Modifier.width(8.dp))
                             Text(stringResource(R.string.action_export_notes))
                         }
@@ -445,7 +434,7 @@ fun BookDetailsScreen(
                             Text(stringResource(R.string.action_rename_file))
                         }
                         TextButton(onClick = viewModel::rescanMetadata) {
-                            Icon(Icons.Rounded.Refresh, contentDescription = null)
+                            Icon(FolioIcons.Refresh, contentDescription = null)
                             Spacer(Modifier.width(6.dp))
                             Text(stringResource(R.string.action_rescan))
                         }
@@ -456,7 +445,7 @@ fun BookDetailsScreen(
                     }
                     TextButton(onClick = { confirmDelete = true }) {
                         Icon(
-                            Icons.Rounded.Delete,
+                            FolioIcons.Delete,
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.error,
                         )
@@ -577,7 +566,7 @@ private fun AnnotationRow(
             Spacer(Modifier.width(10.dp))
         } else {
             Icon(
-                Icons.Rounded.Bookmark,
+                FolioIcons.Bookmark,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(end = 10.dp),
@@ -600,7 +589,7 @@ private fun AnnotationRow(
         }
         IconButton(onClick = onDelete) {
             Icon(
-                Icons.Rounded.Delete,
+                FolioIcons.Delete,
                 contentDescription = stringResource(R.string.action_delete),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )

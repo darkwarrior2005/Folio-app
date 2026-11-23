@@ -4,6 +4,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,13 +21,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.FileDownload
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -47,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -58,6 +55,8 @@ import app.folio.ui.components.ConfirmDialog
 import app.folio.ui.components.EmptyState
 import app.folio.ui.components.FolioChip
 import app.folio.ui.folioViewModel
+import app.folio.ui.icons.FolioIcons
+import app.folio.ui.share.QuoteCard
 import app.folio.ui.theme.LocalSpacing
 import app.folio.ui.util.Format
 
@@ -75,6 +74,7 @@ fun NotesScreen(
     val query by viewModel.query.collectAsStateWithLifecycle()
     val colorFilter by viewModel.colorFilter.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
+    val context = LocalContext.current
 
     var tab by remember { mutableIntStateOf(0) }
     var pendingDelete by remember { mutableStateOf<Long?>(null) }
@@ -90,7 +90,7 @@ fun NotesScreen(
                 actions = {
                     IconButton(onClick = { export.launch("folio-notes.md") }) {
                         Icon(
-                            Icons.Rounded.FileDownload,
+                            FolioIcons.FileDownload,
                             contentDescription = stringResource(R.string.action_export_notes),
                         )
                     }
@@ -194,6 +194,7 @@ fun NotesScreen(
                                 label = entry.highlight.positionLabel,
                                 date = entry.highlight.createdAt,
                                 tint = Color(entry.highlight.color.argb),
+                                onShareCard = { QuoteCard.share(context, entry.highlight.text, entry.bookTitle, null) },
                                 onClick = { onOpenLocation(entry.highlight.bookId, entry.highlight.location) },
                                 onDelete = { viewModel.deleteHighlight(entry.highlight.id) },
                             )
@@ -272,6 +273,7 @@ private fun NoteCard(
     label: String,
     date: Long,
     tint: Color? = null,
+    onShareCard: (() -> Unit)? = null,
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -324,9 +326,18 @@ private fun NoteCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        if (onShareCard != null) {
+            IconButton(onClick = { runCatching(onShareCard) }) {
+                Icon(
+                    FolioIcons.QuoteCard,
+                    contentDescription = stringResource(R.string.quote_card_share),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
         IconButton(onClick = onDelete) {
             Icon(
-                Icons.Rounded.Delete,
+                FolioIcons.Delete,
                 contentDescription = stringResource(R.string.action_delete),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -374,14 +385,14 @@ private fun DrawingCard(entry: DrawingEntry, onClick: () -> Unit, onOpenInBook: 
         }
         IconButton(onClick = onOpenInBook) {
             Icon(
-                Icons.AutoMirrored.Rounded.MenuBook,
+                FolioIcons.MenuBook,
                 contentDescription = stringResource(R.string.drawing_open_in_book),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         IconButton(onClick = onDelete) {
             Icon(
-                Icons.Rounded.Delete,
+                FolioIcons.Delete,
                 contentDescription = stringResource(R.string.action_delete),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )

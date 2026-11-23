@@ -21,10 +21,10 @@ object Routes {
     const val STORAGE = "settings/storage"
     const val PRIVACY = "settings/privacy"
     const val ACCESSIBILITY = "settings/accessibility"
+    const val NIGHT_LIGHT = "settings/night-light"
     const val NOTIFICATIONS = "settings/notifications"
     const val BACKUP = "settings/backup"
     const val ABOUT = "settings/about"
-    const val NIGHT_LIGHT = "settings/night-light"
 
     const val BOOK_ID = "bookId"
     const val COLLECTION_ID = "collectionId"
@@ -35,6 +35,30 @@ object Routes {
     const val MUSIC_COLLECTION = "music/collection/{$COLLECTION_ID}"
     fun trackEdit(id: Long) = "music/track/$id"
     fun musicCollection(id: Long) = "music/collection/$id"
+
+    const val MANGA_BROWSE = "manga/browse"
+    const val WEB = "web"
+    const val EXTENSIONS_TAB = "tab"
+    const val MANGA_EXTENSIONS = "manga/extensions?$EXTENSIONS_TAB={$EXTENSIONS_TAB}"
+    const val MANGA_DOWNLOADS = "manga/downloads"
+    const val MANGA_SETTINGS = "settings/manga"
+    fun mangaExtensions(tab: Int = 0) = "manga/extensions?$EXTENSIONS_TAB=$tab"
+
+    const val SOURCE_ID = "sourceId"
+    const val MANGA_ID = "mangaId"
+    const val CHAPTER_ID = "chapterId"
+    const val MANGA_SOURCE = "manga/source/{$SOURCE_ID}"
+    const val MANGA_DETAILS = "manga/details/{$MANGA_ID}"
+    const val MANGA_READER = "manga/read/{$CHAPTER_ID}"
+    fun mangaSource(id: Long) = "manga/source/$id"
+    const val MANGA_SOURCE_SETTINGS = "manga/source/{$SOURCE_ID}/settings"
+    fun mangaSourceSettings(id: Long) = "manga/source/$id/settings"
+    fun mangaDetails(id: Long) = "manga/details/$id"
+    fun mangaReader(chapterId: Long) = "manga/read/$chapterId"
+    const val WEB_URL = "url"
+    const val MANGA_WEBVIEW = "manga/webview/{$SOURCE_ID}?$WEB_URL={$WEB_URL}"
+    fun mangaWebView(sourceId: Long, url: String? = null) =
+        "manga/webview/$sourceId" + (url?.let { "?$WEB_URL=${android.net.Uri.encode(it)}" } ?: "")
 
     const val NOTE_ID = "noteId"
     const val DRAWN_NOTE = "drawing/{$NOTE_ID}"
@@ -64,33 +88,4 @@ object Routes {
     fun collection(id: Long) = "$COLLECTION_BASE/$id"
 
     val bottomBar = listOf(HOME, LIBRARY, NOTES, STATS, SETTINGS)
-
-    const val MANGA_BROWSE = "manga/browse"
-    const val SOURCE_ID = "sourceId"
-    const val MANGA_SOURCE = "manga/source/{$SOURCE_ID}"
-    const val MANGA_ID = "mangaId"
-    const val MANGA_DETAILS = "manga/details/{$MANGA_ID}"
-    const val CHAPTER_ID = "chapterId"
-    const val MANGA_READER = "manga/reader/{$MANGA_ID}/{$CHAPTER_ID}"
-    const val MANGA_DOWNLOADS = "manga/downloads"
-    const val MANGA_SETTINGS = "settings/manga"
-    const val PACKAGE_NAME = "packageName"
-    const val MANGA_SOURCE_SETTINGS = "manga/source-settings/{$PACKAGE_NAME}"
-    const val EXTENSIONS_TAB = "tab"
-    const val MANGA_EXTENSIONS = "manga/extensions?$EXTENSIONS_TAB={$EXTENSIONS_TAB}"
-
-    fun mangaSource(id: Long) = "manga/source/$id"
-    fun mangaDetails(id: Long) = "manga/details/$id"
-    fun mangaReader(mangaId: Long, chapterId: Long) = "manga/reader/$mangaId/$chapterId"
-    fun mangaSourceSettings(packageName: String) = "manga/source-settings/${android.net.Uri.encode(packageName)}"
-    fun mangaExtensions(tab: Int) = "manga/extensions?$EXTENSIONS_TAB=$tab"
-
-    const val SOURCE_URL = "url"
-    const val SOURCE_NAME = "sourceName"
-    const val MANGA_SOURCE_WEBVIEW = "manga/webview/{$SOURCE_ID}?$SOURCE_URL={$SOURCE_URL}"
-    fun mangaSourceWebView(sourceId: Long, url: String) =
-        "manga/webview/$sourceId?$SOURCE_URL=${android.net.Uri.encode(url)}"
-
-    const val WEB = "web?$SOURCE_URL={$SOURCE_URL}"
-    fun web(url: String? = null) = "web?$SOURCE_URL=${android.net.Uri.encode(url.orEmpty())}"
 }

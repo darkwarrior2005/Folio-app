@@ -1,94 +1,90 @@
 package app.folio.manga.download
 
-import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
-import android.os.Build
+import androidx.core.app.NotificationCompat
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.ForegroundInfo
 import androidx.work.NetworkType
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import app.folio.FolioApp
 import app.folio.R
 
 /**
- * Runs the download queue as expedited WorkManager work, so it survives the app being swapped
- * away. Distinguishes "queue empty" from "stopped by WorkManager" (a network/battery constraint
- * no longer holding) so the latter retries instead of silently giving up.
+ * Runs the download queue outside the reader's lifetime, so downloads carry on while the user
+ * reads something else or leaves the app, and resume after a restart.
+ *
+ * The queue lives in the database, so this worker holds no state of its own: it drains whatever
+ * is queued and exits.
  */
 class DownloadWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        if (Build.VERSION.SDK_INT < 31) {
-            setForegroundAsync(foregroundInfo())
-        }
         val container = (applicationContext as? FolioApp)?.container ?: return Result.success()
-        val finishedCleanly = runQueue(container)
-        return if (finishedCleanly) Result.success() else Result.retry()
+
+        // Switched off while the work was waiting: drop it rather than retrying.
+        if (!container.mangaAccess.enabled()) return Result.success()
+
+        val finished = container.downloader.runQueue(isStopped = { isStopped })
+        return if (finished) Result.success() else Result.retry()
     }
 
-    /** @return true if the queue genuinely ran dry, false if WorkManager is asking us to stop. */
-    private suspend fun runQueue(container: app.folio.AppContainer): Boolean {
-        val downloadManager = container.downloadManager
-        val downloader = container.downloader
-        while (!isStopped) {
-            val next = downloadManager.queue.value.firstOrNull { it.progress !is DownloadProgress.Done } ?: return true
-            val source = container.sourceManager.get(next.sourceId) as? eu.kanade.tachiyomi.source.online.HttpSource
-                ?: continue
-            val sChapter = eu.kanade.tachiyomi.source.model.SChapter.create().apply {
-                url = next.chapter.url
-                name = next.chapter.name
-            }
-            try {
-                downloader.downloadChapter(source, next.mangaTitle, next.chapter, sChapter) { progress ->
-                    downloadManager.updateProgress(next.chapter.id, progress)
-                }
-            } catch (_: Exception) {
-                downloadManager.updateProgress(next.chapter.id, DownloadProgress.Failed("Download failed"))
-            }
-        }
-        return false
-    }
-
-    private fun foregroundInfo(): ForegroundInfo {
-        val channelId = "manga_downloads"
-        val manager = applicationContext.getSystemService(android.app.NotificationManager::class.java)
-        if (Build.VERSION.SDK_INT >= 26) {
-            manager?.createNotificationChannel(
-                android.app.NotificationChannel(channelId, "Manga downloads", android.app.NotificationManager.IMPORTANCE_LOW),
-            )
-        }
-        val notification = Notification.Builder(applicationContext, channelId)
-            .setContentTitle("Downloading chapters")
+    /**
+     * Lets a large queue ask to run expedited instead of being the exact scenario WorkManager's
+     * execution budget cuts off mid-batch. Pre-Android 12 this means a foreground service, which
+     * needs a notification to show while it runs.
+     */
+    override suspend fun getForegroundInfo(): ForegroundInfo {
+        val manager = applicationContext.getSystemService(NotificationManager::class.java)
+        manager?.createNotificationChannel(
+            NotificationChannel(
+                CHANNEL_ID,
+                applicationContext.getString(R.string.manga_downloads),
+                NotificationManager.IMPORTANCE_LOW,
+            ),
+        )
+        val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle(applicationContext.getString(R.string.manga_downloads))
             .setOngoing(true)
             .build()
         return ForegroundInfo(NOTIFICATION_ID, notification)
     }
 
     companion object {
-        private const val NOTIFICATION_ID = 42
-        const val WORK_NAME = "folio-manga-downloads"
+        private const val NAME = "manga-downloads"
+        private const val CHANNEL_ID = "folio_manga_downloads"
+        private const val NOTIFICATION_ID = 4201
 
-        fun schedule(context: Context) {
-            WorkManager.getInstance(context).enqueueUniqueWork(
-                WORK_NAME,
-                ExistingWorkPolicy.KEEP,
-                OneTimeWorkRequestBuilder<DownloadWorker>()
-                    .setConstraints(
-                        Constraints.Builder()
-                            .setRequiredNetworkType(NetworkType.CONNECTED)
-                            .build(),
-                    )
-                    .setExpedited(androidx.work.OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
-                    .build(),
-            )
+        /**
+         * Queues a run, keeping any run already in flight: the worker picks up whatever is in the
+         * queue by the time it gets there, so a second request would only duplicate work.
+         */
+        fun start(context: Context) {
+            val container = (context.applicationContext as? FolioApp)?.container
+            val wifiOnly = container?.downloadsOverWifiOnly ?: true
+
+            val request = OneTimeWorkRequestBuilder<DownloadWorker>()
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(if (wifiOnly) NetworkType.UNMETERED else NetworkType.CONNECTED)
+                        .build(),
+                )
+                .setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST)
+                .build()
+
+            WorkManager.getInstance(context.applicationContext)
+                .enqueueUniqueWork(NAME, ExistingWorkPolicy.KEEP, request)
         }
 
-        /** Resumes a queue a killed process left behind; call from FolioApp.onCreate(). */
-        fun resumeIfNeeded(context: Context) = schedule(context)
+        fun stop(context: Context) {
+            WorkManager.getInstance(context.applicationContext).cancelUniqueWork(NAME)
+        }
     }
 }

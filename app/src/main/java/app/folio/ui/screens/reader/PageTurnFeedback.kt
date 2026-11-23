@@ -4,97 +4,79 @@ import android.media.AudioAttributes
 import android.media.AudioFormat
 import android.media.AudioTrack
 import android.os.Build
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalHapticFeedback
-import androidx.compose.ui.platform.LocalView
+import android.view.HapticFeedbackConstants
+import android.view.View
+import kotlin.math.PI
+import kotlin.math.exp
 import kotlin.math.sin
 import kotlin.random.Random
 
-private const val SAMPLE_RATE = 22_050
-private const val DURATION_SECONDS = 0.11
-
 /**
- * A short page-turn tick: a synthesized 0.11s burst of filtered noise (no asset file), played
- * through an AudioTrack with usage ASSISTANCE_SONIFICATION so it's silenced by silent mode, plus
- * a KEYBOARD_RELEASE haptic (CLOCK_TICK before API 27). Call [PageTurnFeedback.play] from a
- * LaunchedEffect keyed on the current page, never on first open.
+ * A soft paper whisper and a light tick when the page turns. The sound is made on the phone
+ * (filtered noise, a fraction of a second, quiet) and plays at the system-sounds volume, so silent
+ * mode quiets it; the tick follows the system's haptics setting.
  */
 class PageTurnFeedback {
 
     private var track: AudioTrack? = null
 
-    fun play() {
-        val audioTrack = track ?: build().also { track = it }
-        audioTrack.stop()
-        audioTrack.reloadStaticData()
-        audioTrack.play()
+    fun play(view: View, sound: Boolean, haptic: Boolean) {
+        if (haptic) {
+            val effect = if (Build.VERSION.SDK_INT >= 27) HapticFeedbackConstants.KEYBOARD_RELEASE else HapticFeedbackConstants.CLOCK_TICK
+            view.performHapticFeedback(effect)
+        }
+        if (sound) {
+            if (track == null) track = runCatching { buildTrack() }.getOrNull()
+            track?.let { t ->
+                runCatching {
+                    t.stop()
+                    t.reloadStaticData()
+                    t.play()
+                }
+            }
+        }
     }
 
     fun release() {
-        track?.release()
+        runCatching { track?.release() }
         track = null
     }
 
-    private fun build(): AudioTrack {
-        val sampleCount = (SAMPLE_RATE * DURATION_SECONDS).toInt()
-        val samples = ShortArray(sampleCount)
-        val random = Random(0)
-        var filtered = 0f
-        for (i in samples.indices) {
-            val noise = random.nextFloat() * 2f - 1f
-            // A simple one-pole low-pass so the burst sounds like a soft tick, not white noise.
-            filtered = filtered * 0.7f + noise * 0.3f
-            val envelope = 1f - (i.toFloat() / sampleCount)
-            samples[i] = (filtered * envelope * Short.MAX_VALUE * 0.5f).toInt().toShort()
+    private fun buildTrack(): AudioTrack {
+        val rate = 22_050
+        val samples = (rate * 0.11).toInt()
+        val pcm = ShortArray(samples)
+        val random = Random(7)
+        var low = 0.0
+        var previous = 0.0
+        for (i in 0 until samples) {
+            val t = i.toDouble() / samples
+            // Rises quickly, fades slowly: the brush of a page edge.
+            val envelope = (1 - exp(-t * 40)) * exp(-t * 6.5) * (0.85 + 0.15 * sin(t * PI * 9))
+            val noise = random.nextDouble(-1.0, 1.0)
+            low += (noise - low) * 0.35 // soften the hiss
+            val band = low - previous * 0.6 // and take away the rumble
+            previous = low
+            pcm[i] = (band * envelope * 0.22 * Short.MAX_VALUE).toInt().coerceIn(-32767, 32767).toShort()
         }
-        val bytes = java.nio.ByteBuffer.allocate(samples.size * 2)
-            .order(java.nio.ByteOrder.LITTLE_ENDIAN)
-            .apply { samples.forEach { putShort(it) } }
-            .array()
-
-        val attributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
-        val format = AudioFormat.Builder()
-            .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
-            .setSampleRate(SAMPLE_RATE)
-            .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
-            .build()
-        val audioTrack = AudioTrack.Builder()
-            .setAudioAttributes(attributes)
-            .setAudioFormat(format)
-            .setBufferSizeInBytes(bytes.size)
+        val track = AudioTrack.Builder()
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build(),
+            )
+            .setAudioFormat(
+                AudioFormat.Builder()
+                    .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                    .setSampleRate(rate)
+                    .setChannelMask(AudioFormat.CHANNEL_OUT_MONO)
+                    .build(),
+            )
             .setTransferMode(AudioTrack.MODE_STATIC)
+            .setBufferSizeInBytes(samples * 2)
             .build()
-        audioTrack.write(bytes, 0, bytes.size)
-        return audioTrack
-    }
-}
-
-/** Fires sound/haptic feedback on every page change after the first, keyed on [page]. */
-@Composable
-fun PageTurnEffect(page: Int, soundEnabled: Boolean, hapticEnabled: Boolean) {
-    val feedback = remember { PageTurnFeedback() }
-    val haptics = LocalHapticFeedback.current
-    val view = LocalView.current
-
-    DisposableEffect(Unit) { onDispose { feedback.release() } }
-
-    LaunchedEffect(page) {
-        if (page == 0) return@LaunchedEffect // never on first open
-        if (soundEnabled) feedback.play()
-        if (hapticEnabled) {
-            if (Build.VERSION.SDK_INT >= 27) {
-                view.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_RELEASE)
-            } else {
-                @Suppress("DEPRECATION")
-                view.performHapticFeedback(android.view.HapticFeedbackConstants.CLOCK_TICK)
-            }
-        }
+        track.write(pcm, 0, pcm.size)
+        return track
     }
 }

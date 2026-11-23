@@ -7,11 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -31,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.folio.R
 import app.folio.ui.LocalContainer
+import app.folio.ui.icons.FolioIcons
 
 /** Slim now-playing strip; invisible when nothing is queued. Tap to open the full player. */
 @Composable
@@ -49,7 +45,7 @@ fun NowPlayingBar(modifier: Modifier = Modifier) {
     ) {
         Column {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)) {
-                Icon(Icons.Rounded.MusicNote, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                Icon(FolioIcons.MusicNote, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                     Text(now.title.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
                     now.artist?.let {
@@ -58,12 +54,12 @@ fun NowPlayingBar(modifier: Modifier = Modifier) {
                 }
                 IconButton(onClick = player::toggle) {
                     Icon(
-                        if (now.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        if (now.isPlaying) FolioIcons.Pause else FolioIcons.PlayArrow,
                         contentDescription = stringResource(if (now.isPlaying) R.string.music_pause else R.string.music_play),
                     )
                 }
                 IconButton(onClick = player::next) {
-                    Icon(Icons.Rounded.SkipNext, contentDescription = stringResource(R.string.music_next))
+                    Icon(FolioIcons.SkipNext, contentDescription = stringResource(R.string.music_next))
                 }
             }
             if (now.durationMs > 0) {

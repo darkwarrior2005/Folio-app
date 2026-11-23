@@ -2,123 +2,150 @@ package eu.kanade.tachiyomi.network.interceptor
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.pm.PackageManager
+import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import app.folio.util.matchUserAgentClientHints
-import app.folio.util.toWebViewHeaders
+import androidx.core.content.ContextCompat
+import app.folio.R
 import eu.kanade.tachiyomi.network.AndroidCookieJar
-import kotlinx.coroutines.CoroutineScope
-import okhttp3.HttpUrl
+import eu.kanade.tachiyomi.util.system.setUserAgentWithClientHints
+import okhttp3.Cookie
+import okhttp3.Headers
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
-import java.util.concurrent.ConcurrentHashMap
+import java.util.Locale
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.locks.ReentrantReadWriteLock
-import kotlin.concurrent.read
-import kotlin.concurrent.write
 
 /**
- * Solves a Cloudflare browser check in an off-screen WebView and retries the request with the
- * `cf_clearance` cookie it earns. A check that needs an actual click (a captcha, "verify you are
- * human") can't be solved here and fails with [CloudflareChallengeException]; "Open the site"
- * (SourceWebViewScreen) is where the user solves those.
+ * Gets past Cloudflare's "checking your browser" page by loading it in an off-screen WebView,
+ * which runs the challenge and receives the `cf_clearance` cookie; the request is then retried
+ * with that cookie, shared through [AndroidCookieJar].
  *
- * The class name matters: Keiyoushi's base HttpSource refuses to start a client unless its
- * interceptors include one literally named CloudflareInterceptor.
+ * Extensions built on Keiyoushi's `KeiSource` refuse to run unless the shared client carries an
+ * interceptor with exactly this class name, so it must not be renamed.
+ *
+ * A challenge that needs the user to click something cannot be solved here: the request fails with
+ * [CloudflareChallengeException], which the UI answers by offering to open the site, where the
+ * user can pass the check themselves and leave the cookie behind for the next try.
+ *
+ * Adapted from Mihon (Apache-2.0).
  */
 class CloudflareInterceptor(
     private val context: Context,
-    private val cookieJar: AndroidCookieJar,
-    private val scope: CoroutineScope,
+    private val cookieManager: AndroidCookieJar,
     private val defaultUserAgentProvider: () -> String,
 ) : Interceptor {
 
-    private val executor = androidx.core.content.ContextCompat.getMainExecutor(context)
-
-    // Concurrent requests to the same host share one WebView solve instead of each opening one.
-    private val hostLocks = ConcurrentHashMap<String, ReentrantReadWriteLock>()
+    private val executor = ContextCompat.getMainExecutor(context)
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        val lock = hostLocks.computeIfAbsent(request.url.host) { ReentrantReadWriteLock() }
+        val response = chain.proceed(request)
+        if (!isChallenge(response) || !supportsWebView()) return response
 
-        val outcome = lock.read {
-            val response = chain.proceed(request)
-            if (!looksLikeChallenge(response)) return response
-            response to clearanceCookie(request.url)
+        try {
+            response.close()
+            cookieManager.remove(request.url, COOKIE_NAMES, 0)
+            val oldCookie = cookieManager.get(request.url).firstOrNull { it.name == CLEARANCE_COOKIE }
+            resolveWithWebView(request, oldCookie)
+            return chain.proceed(request)
+        } catch (e: CloudflareBypassException) {
+            // OkHttp's async calls only report IOExceptions; anything else would crash the app.
+            throw CloudflareChallengeException(
+                host = request.url.host,
+                message = context.getString(R.string.manga_cloudflare_failed, request.url.host),
+            )
+        } catch (e: IOException) {
+            throw e
+        } catch (e: Exception) {
+            throw IOException(e)
         }
-
-        lock.write {
-            val (response, previousClearance) = outcome
-            if (clearanceCookie(request.url) != previousClearance && clearanceCookie(request.url) != null) {
-                // Solved by another request to this host while we waited for the write lock.
-                response.close()
-            } else {
-                response.close()
-                cookieJar.remove(request.url, COOKIE_NAMES)
-                resolveWithWebView(request)
-            }
-        }
-
-        return chain.proceed(request)
     }
 
-    private fun looksLikeChallenge(response: Response): Boolean {
-        if (response.code !in intArrayOf(403, 503)) return false
-        val server = response.header("Server").orEmpty()
-        return server in SERVER_CHECK || response.header("cf-mitigated") == "challenge"
-    }
+    /** Cloudflare's documented way to recognise a challenge page. */
+    private fun isChallenge(response: Response): Boolean =
+        response.header("cf-mitigated") == "challenge" && response.header("Server") in SERVER_CHECK
 
-    private fun clearanceCookie(url: HttpUrl): String? =
-        cookieJar.get(url).firstOrNull { it.name == "cf_clearance" }?.value
+    private fun supportsWebView(): Boolean = try {
+        // Throws when the WebView package is missing or being updated.
+        CookieManager.getInstance()
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_WEBVIEW)
+    } catch (_: Throwable) {
+        false
+    }
 
     @SuppressLint("SetJavaScriptEnabled")
-    private fun resolveWithWebView(originalRequest: Request) {
+    private fun resolveWithWebView(originalRequest: Request, oldCookie: Cookie?) {
+        // OkHttp interceptors are synchronous, so this thread waits for the WebView.
         val latch = CountDownLatch(1)
         var webView: WebView? = null
-        var failed = false
+        var challengeFound = false
+        var bypassed = false
 
-        val challengeUrl = if (originalRequest.method == "GET") {
-            originalRequest.url.toString()
-        } else {
-            originalRequest.url.newBuilder().encodedPath("/").query(null).fragment(null).build().toString()
-        }
-        val headers = originalRequest.headers.toWebViewHeaders()
+        val requestUrl = originalRequest.url.toString()
+        val headers = safeHeaders(originalRequest.headers)
 
         executor.execute {
-            val view = WebView(context)
+            val view = WebView(context).apply {
+                settings.javaScriptEnabled = true
+                settings.domStorageEnabled = true
+                settings.useWideViewPort = true
+                settings.loadWithOverviewMode = true
+                settings.cacheMode = WebSettings.LOAD_DEFAULT
+                CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
+                // An empty user agent makes Chromium fall back to its own, which Cloudflare then
+                // sees disagreeing with the one the source sends.
+                setUserAgentWithClientHints(originalRequest.header("User-Agent") ?: defaultUserAgentProvider())
+            }
             webView = view
-            view.settings.javaScriptEnabled = true
-            view.matchUserAgentClientHints(defaultUserAgentProvider())
 
             view.addJavascriptInterface(
                 object {
                     @Suppress("unused")
                     @JavascriptInterface
-                    fun postMessage(event: String) {
-                        if (event == "fail" || event == "interactiveBegin") {
-                            failed = true
-                            latch.countDown()
-                        }
+                    fun interactiveDetected() {
+                        // This challenge wants a click; nothing more can be done off-screen.
+                        latch.countDown()
                     }
                 },
-                "folio",
+                JS_BRIDGE,
             )
 
             view.webViewClient = object : WebViewClient() {
-                override fun onPageFinished(webView: WebView, url: String) {
-                    if (clearanceCookie(originalRequest.url) != null) {
+                override fun onPageFinished(view: WebView, url: String) {
+                    val cleared = cookieManager.get(requestUrl.toHttpUrl())
+                        .firstOrNull { it.name == CLEARANCE_COOKIE }
+                        .let { it != null && it != oldCookie }
+                    if (cleared) {
+                        bypassed = true
                         latch.countDown()
-                    } else if (url == challengeUrl) {
-                        // Still on the challenge page after it loaded: nothing left to wait for.
-                        failed = true
-                        latch.countDown()
+                    }
+
+                    if (url == requestUrl) {
+                        if (!challengeFound) {
+                            // The page loaded without a challenge this time; let the retry go.
+                            latch.countDown()
+                        } else {
+                            view.evaluateJavascript(
+                                """
+                                    addEventListener("message", ({data}) => {
+                                        if (data?.source === "cloudflare-challenge" && data?.event === "interactiveBegin") {
+                                            $JS_BRIDGE.interactiveDetected();
+                                        }
+                                    })
+                                """.trimIndent(),
+                                null,
+                            )
+                        }
                     }
                 }
 
@@ -127,37 +154,60 @@ class CloudflareInterceptor(
                     request: WebResourceRequest?,
                     errorResponse: WebResourceResponse?,
                 ) {
-                    if (request?.isForMainFrame == true && errorResponse?.responseHeaders?.get("cf-mitigated") != "challenge") {
-                        failed = true
-                        latch.countDown()
+                    if (request?.isForMainFrame == true) {
+                        if (errorResponse?.responseHeaders?.get("cf-mitigated") == "challenge") {
+                            challengeFound = true
+                        } else {
+                            latch.countDown()
+                        }
                     }
                 }
             }
 
-            view.loadUrl(challengeUrl, headers)
+            view.loadUrl(requestUrl, headers)
         }
 
-        latch.await(30, TimeUnit.SECONDS)
+        latch.await(TIMEOUT_SECONDS, TimeUnit.SECONDS)
 
         executor.execute {
-            webView?.apply {
+            webView?.run {
                 stopLoading()
-                removeJavascriptInterface("folio")
+                // The challenge page is not worth keeping; the clearance cookie is what matters.
+                clearCache(true)
+                clearHistory()
                 destroy()
             }
         }
 
-        if (failed || clearanceCookie(originalRequest.url) == null) {
-            cookieJar.remove(originalRequest.url, COOKIE_NAMES)
-            throw IOException(CloudflareChallengeException())
-        }
+        if (!bypassed) throw CloudflareBypassException()
     }
 
-    companion object {
-        private val SERVER_CHECK = arrayOf("cloudflare-nginx", "cloudflare")
-        private val COOKIE_NAMES = listOf("cf_clearance")
+    /** Headers Chromium refuses to send ([net::ERR_INVALID_ARGUMENT]) are dropped. */
+    private fun safeHeaders(headers: Headers): Map<String, String> = headers
+        .filter { (name, value) -> isRequestHeaderSafe(name, value) }
+        .groupBy(keySelector = { (name, _) -> name }) { (_, value) -> value }
+        .mapValues { it.value.firstOrNull().orEmpty() }
+
+    private fun isRequestHeaderSafe(name: String, value: String): Boolean {
+        val lowerName = name.lowercase(Locale.ENGLISH)
+        if (lowerName in UNSAFE_HEADERS || lowerName.startsWith("proxy-")) return false
+        return !(lowerName == "connection" && value.lowercase(Locale.ENGLISH) == "upgrade")
+    }
+
+    private class CloudflareBypassException : Exception()
+
+    private companion object {
+        const val CLEARANCE_COOKIE = "cf_clearance"
+        const val JS_BRIDGE = "folioCloudflare"
+        const val TIMEOUT_SECONDS = 30L
+        val COOKIE_NAMES = listOf(CLEARANCE_COOKIE)
+        val SERVER_CHECK = arrayOf("cloudflare-nginx", "cloudflare")
+        val UNSAFE_HEADERS = listOf(
+            "content-length", "host", "trailer", "te", "upgrade", "cookie2", "keep-alive",
+            "transfer-encoding", "set-cookie",
+        )
     }
 }
 
-/** Thrown when the challenge needed real user interaction and couldn't be solved headlessly. */
-class CloudflareChallengeException : Exception("This site needs you to open it once to continue")
+/** Cloudflare wants a person to pass its check; the site has to be opened for that. */
+class CloudflareChallengeException(val host: String, message: String) : IOException(message)

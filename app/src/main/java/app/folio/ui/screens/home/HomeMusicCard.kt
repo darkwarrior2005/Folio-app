@@ -15,14 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.PlaylistAdd
-import androidx.compose.material.icons.automirrored.rounded.QueueMusic
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,6 +42,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.folio.R
 import app.folio.ui.LocalContainer
 import app.folio.ui.components.ProgressBar
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.screens.music.PlayerSheet
 import app.folio.ui.theme.LocalReduceMotion
 import coil3.compose.AsyncImage
@@ -122,14 +115,14 @@ fun HomeMusicCard(
                     }
                     IconButton(onClick = { assigning = true }) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.PlaylistAdd,
+                            FolioIcons.PlaylistAdd,
                             contentDescription = stringResource(R.string.music_assign_open),
                             tint = MaterialTheme.colorScheme.primary,
                         )
                     }
                     IconButton(onClick = onOpenMusicLibrary) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.QueueMusic,
+                            FolioIcons.QueueMusic,
                             contentDescription = stringResource(R.string.home_music_library),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -137,7 +130,7 @@ fun HomeMusicCard(
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = player::previous) {
-                        Icon(Icons.Rounded.SkipPrevious, contentDescription = stringResource(R.string.music_previous))
+                        Icon(FolioIcons.SkipPrevious, contentDescription = stringResource(R.string.music_previous))
                     }
                     FilledTonalIconButton(onClick = player::toggle) {
                         Crossfade(
@@ -146,7 +139,7 @@ fun HomeMusicCard(
                             label = "play-pause",
                         ) { playing ->
                             Icon(
-                                if (playing) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                                if (playing) FolioIcons.Pause else FolioIcons.PlayArrow,
                                 contentDescription = stringResource(
                                     if (playing) R.string.music_pause else R.string.music_play,
                                 ),
@@ -154,7 +147,7 @@ fun HomeMusicCard(
                         }
                     }
                     IconButton(onClick = player::next) {
-                        Icon(Icons.Rounded.SkipNext, contentDescription = stringResource(R.string.music_next))
+                        Icon(FolioIcons.SkipNext, contentDescription = stringResource(R.string.music_next))
                     }
                 }
                 val progress = if (now.durationMs > 0) now.positionMs.toFloat() / now.durationMs else 0f
@@ -199,7 +192,7 @@ private fun IdleMusicCard(onAssign: () -> Unit, onOpenMusicLibrary: () -> Unit, 
             }
             IconButton(onClick = onOpenMusicLibrary) {
                 Icon(
-                    Icons.AutoMirrored.Rounded.QueueMusic,
+                    FolioIcons.QueueMusic,
                     contentDescription = stringResource(R.string.home_music_library),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -231,7 +224,7 @@ private fun MusicArtwork(coverPath: String?, size: Dp) {
             )
         } else {
             Icon(
-                Icons.Rounded.MusicNote,
+                FolioIcons.MusicNote,
                 contentDescription = null,
                 tint = Color.White.copy(alpha = 0.92f),
                 modifier = Modifier.size(size * 0.45f),

@@ -8,21 +8,32 @@ import org.junit.Test
 class SourceLanguagesTest {
 
     @Test
-    fun hiddenLanguagesAreFilteredOut() {
-        val visible = SourceLanguages.visible(setOf("en", "ja", "es"), hiddenLanguages = setOf("ja"))
-        assertEquals(listOf("en", "es"), visible)
+    fun `nothing hidden shows everything`() {
+        assertTrue(SourceLanguages.isShown("ja", emptySet()))
+        assertTrue(SourceLanguages.isExtensionShown("ja", listOf("ja"), emptySet()))
     }
 
     @Test
-    fun onlyShowHidesEveryOtherLanguage() {
-        val hidden = SourceLanguages.onlyShow(setOf("en", "ja", "es"), "en")
-        assertEquals(setOf("ja", "es"), hidden)
-        assertFalse(SourceLanguages.isVisible("ja", hidden))
-        assertTrue(SourceLanguages.isVisible("en", hidden))
+    fun `a hidden language is not shown and an unnamed one counts as other`() {
+        assertFalse(SourceLanguages.isShown("ja", setOf("ja")))
+        assertFalse(SourceLanguages.isShown("", setOf("other")))
+        assertTrue(SourceLanguages.isShown("en", setOf("ja")))
     }
 
     @Test
-    fun nothingHiddenMeansEverythingVisible() {
-        assertEquals(listOf("en", "ja"), SourceLanguages.visible(setOf("ja", "en"), emptySet()))
+    fun `a multi-language extension stays while any of its languages is kept`() {
+        assertTrue(SourceLanguages.isExtensionShown("all", listOf("ja", "en"), setOf("ja")))
+        assertFalse(SourceLanguages.isExtensionShown("all", listOf("ja", "de"), setOf("ja", "de")))
+    }
+
+    @Test
+    fun `hidden languages stay in the choices so they can be turned back on`() {
+        assertEquals(listOf("en", "other", "ja"), SourceLanguages.choices(listOf("en", ""), setOf("ja")))
+    }
+
+    @Test
+    fun `keeping one language keeps its regional variants and multi-language sources`() {
+        val hidden = SourceLanguages.hideAllBut(listOf("en", "pt", "pt-BR", "ja", "all"), keep = listOf("pt"))
+        assertEquals(setOf("en", "ja"), hidden)
     }
 }

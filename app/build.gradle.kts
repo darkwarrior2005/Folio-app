@@ -24,8 +24,8 @@ android {
         applicationId = "app.folio.reader"
         minSdk = 26
         targetSdk = 36
-        versionCode = 19
-        versionName = "1.6.3"
+        versionCode = 20
+        versionName = "1.6.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -135,20 +135,24 @@ dependencies {
     implementation(libs.commonmark)
     implementation(libs.jsoup)
 
-    // Mihon-compatible manga source API and extension support.
+    // Manga sources: the extensions-lib surface extensions are compiled against.
     implementation(libs.okhttp)
-    implementation(libs.okhttp.brotli)
-    implementation(libs.okhttp.zstd)
     implementation(libs.rxjava)
     implementation(libs.injekt.core)
+    // Extensions compile against these without bundling them, expecting the app to provide them
+    // (Keiyoushi's "common" bundle); a missing one fails only when a source first touches it.
+    implementation(libs.okhttp.brotli)
+    implementation(libs.okhttp.zstd)
     implementation(libs.kotlinx.serialization.json.okio)
     implementation(libs.kotlinx.serialization.protobuf)
     implementation(libs.quickjs.android)
-    implementation(libs.imagedecoder)
+    implementation(libs.image.decoder)
     implementation(libs.androidx.preference)
     implementation(libs.coil.network.okhttp)
 
     testImplementation(libs.junit)
+    // Runs the database migration SQL on a real SQLite in JVM tests.
+    testImplementation(libs.sqlite.jdbc)
     testImplementation(libs.kotlinx.coroutines.test)
 
     androidTestImplementation(libs.junit)

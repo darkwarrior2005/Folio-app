@@ -1,66 +1,56 @@
 package app.folio.manga.extension
 
 import android.content.pm.PackageInfo
-import android.content.pm.Signature
-import app.folio.data.db.MangaDao
+import androidx.core.content.pm.PackageInfoCompat
+import app.folio.data.db.FolioDatabase
 import app.folio.data.db.TrustedExtensionEntity
-import java.security.MessageDigest
 
 /**
- * Trust is per package, version and signing key, so an update or a resigned APK must be accepted
- * again. A key that matches a repository the user already added is trusted automatically.
+ * Which extensions the user has agreed to run.
+ *
+ * An extension is code from a stranger running inside Folio's own process, with Folio's
+ * permissions and access to its files. Trust is therefore recorded per package *and* version
+ * *and* signing key: an update, or an apk resigned by someone else, has to be accepted again
+ * rather than inheriting the answer given to the version before it.
+ *
+ * An extension whose signing key matches a repository the user added is trusted without asking,
+ * because adding that repository was the decision to trust its key.
+ *
+ * Adapted from Mihon (Apache-2.0).
  */
-class ExtensionTrust(private val mangaDao: MangaDao) {
+class ExtensionTrust(private val database: FolioDatabase) {
 
-    suspend fun isTrusted(packageInfo: PackageInfo): Boolean {
-        // Signed with the key of a repository the user added: trusted, as in Mihon.
-        val repoKeys = mangaDao.repos().mapNotNull { it.signingKeyFingerprint?.lowercase() }.toSet()
-        if (repoKeys.isNotEmpty() && certificateFingerprintsOf(packageInfo).any { it in repoKeys }) return true
+    private val dao get() = database.manga()
 
-        val fingerprint = fingerprintOf(packageInfo) ?: return false
-        val versionCode = longVersionCodeOf(packageInfo)
-        return mangaDao.trustFor(packageInfo.packageName)
-            .any { it.versionCode == versionCode && it.signatureHash == fingerprint }
+    suspend fun isTrusted(pkgInfo: PackageInfo, signatures: List<String>): Boolean {
+        if (signatures.isEmpty()) return false
+
+        val repoKeys = dao.repos().map { it.signingKeyFingerprint.lowercase() }
+        if (signatures.any { it.lowercase() in repoKeys }) return true
+
+        val versionCode = PackageInfoCompat.getLongVersionCode(pkgInfo)
+        // The last signature is the current one; older ones are the rotation history.
+        return dao.isTrusted(pkgInfo.packageName, versionCode, signatures.last())
     }
 
-    /** SHA-256 of each signing certificate, the form repositories publish their key in. */
-    fun certificateFingerprintsOf(packageInfo: PackageInfo): List<String> =
-        signaturesOf(packageInfo).orEmpty().map { signature ->
-            MessageDigest.getInstance("SHA-256").digest(signature.toByteArray())
-                .joinToString("") { "%02x".format(it) }
-        }
-
-    suspend fun trust(packageInfo: PackageInfo) {
-        val fingerprint = fingerprintOf(packageInfo) ?: return
-        mangaDao.trust(
+    /** Records the user's decision to run this exact apk. */
+    suspend fun trust(pkgName: String, versionCode: Long, signature: String) {
+        dao.trust(
             TrustedExtensionEntity(
-                packageName = packageInfo.packageName,
-                versionCode = longVersionCodeOf(packageInfo),
-                signatureHash = fingerprint,
+                pkgName = pkgName,
+                versionCode = versionCode,
+                signature = signature,
+                trustedAt = System.currentTimeMillis(),
             ),
         )
     }
 
-    suspend fun revoke(packageName: String) = mangaDao.untrust(packageName)
-
-    fun fingerprintOf(packageInfo: PackageInfo): String? {
-        val signatures = signaturesOf(packageInfo) ?: return null
-        if (signatures.isEmpty()) return null
-        val digest = MessageDigest.getInstance("SHA-256")
-        signatures.forEach { digest.update(it.toByteArray()) }
-        return digest.digest().joinToString("") { "%02x".format(it) }
+    suspend fun revoke(pkgName: String) {
+        dao.revokeTrust(pkgName)
     }
 
-    @Suppress("DEPRECATION")
-    private fun signaturesOf(packageInfo: PackageInfo): Array<Signature>? {
-        val signingInfo = packageInfo.signingInfo
-        return if (signingInfo != null) {
-            if (signingInfo.hasMultipleSigners()) signingInfo.apkContentsSigners else signingInfo.signingCertificateHistory
-        } else {
-            packageInfo.signatures
-        }
+    /** Used when the user asks to be prompted for everything again. */
+    suspend fun revokeAll() {
+        dao.revokeAllTrust()
     }
-
-    @Suppress("DEPRECATION")
-    private fun longVersionCodeOf(packageInfo: PackageInfo): Long = packageInfo.longVersionCode
 }
