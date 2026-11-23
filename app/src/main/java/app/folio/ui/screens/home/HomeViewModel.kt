@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import app.folio.AppContainer
 import app.folio.core.model.Bookshelf
 import app.folio.core.model.BookshelfBuilder
+import app.folio.core.model.ComfortPicks
 import app.folio.core.model.LibraryBook
 import app.folio.core.model.LibraryQuery
 import app.folio.core.model.ReadingStatus
@@ -22,7 +23,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.ZoneId
 
@@ -48,25 +48,6 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
     private val books = container.library.libraryBooks
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    val resumeBook: StateFlow<LibraryBook?> = books
-        .map { app.folio.core.model.ComfortPicks.resume(it) }
-        .flowOn(Dispatchers.Default)
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
-
-    private val _surpriseBook = kotlinx.coroutines.flow.MutableStateFlow<LibraryBook?>(null)
-    val surpriseBook: StateFlow<LibraryBook?> = _surpriseBook
-
-    fun surprise() {
-        viewModelScope.launch {
-            val queueIds = container.organization.queueOnce().map { it.bookId }
-            _surpriseBook.value = app.folio.core.model.ComfortPicks.surprise(books.value, queueIds, current = resumeBook.value)
-        }
-    }
-
-    fun clearSurprise() {
-        _surpriseBook.value = null
-    }
-
     val continueReading: StateFlow<List<LibraryBook>> = books
         .map { list ->
             list.filter {
@@ -78,6 +59,18 @@ class HomeViewModel(private val container: AppContainer) : ViewModel() {
         }
         .flowOn(Dispatchers.Default)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /** The book to pick up again, for the welcome-back card. */
+    val resume: StateFlow<LibraryBook?> = books
+        .map { ComfortPicks.resume(it) }
+        .flowOn(Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /** A random next book: from the reading queue, else one not finished yet. */
+    suspend fun surprise(): Long? {
+        val queueIds = container.organization.queueOnce().sortedBy { it.position }.map { it.bookId }
+        return ComfortPicks.surprise(books.value, queueIds)?.id
+    }
 
     val recentlyAdded: StateFlow<List<LibraryBook>> = books
         .map { list -> list.sortedByDescending { it.dateAdded }.take(12) }

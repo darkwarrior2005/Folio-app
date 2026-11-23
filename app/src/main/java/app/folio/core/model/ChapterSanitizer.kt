@@ -1,6 +1,11 @@
 package app.folio.core.model
 
-/** Trims a chapter name the way Mihon does, so names like "- Chapter 5 -" clean up consistently. */
+/**
+ * Cleans a chapter name the way Mihon does: surrounding space and separators go, and so does the
+ * manga's title when the source repeats it at the start of every chapter.
+ *
+ * Ported from Mihon (Apache-2.0).
+ */
 object ChapterSanitizer {
 
     fun String.sanitize(title: String): String {
@@ -10,9 +15,38 @@ object ChapterSanitizer {
     }
 
     private val CHAPTER_TRIM_CHARS = arrayOf(
-        ' ', '\u0009', '\u000A', '\u000B', '\u000C', '\u000D', ' ', '\u0085', ' ',
-        ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ', ' ',
-        ' ', ' ', ' ', ' ', ' ', ' ', ' ', '　',
-        '-', '_', ',', ':',
+        // Whitespace
+        ' ',
+        '\u0009',
+        '\u000A',
+        '\u000B',
+        '\u000C',
+        '\u000D',
+        ' ',
+        '\u0085',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        ' ',
+        '　',
+
+        // Separators
+        '-',
+        '_',
+        ',',
+        ':',
     ).toCharArray()
 }

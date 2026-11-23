@@ -1,14 +1,54 @@
-Folio bundles code derived from other open-source projects.
+Folio
+=====
 
-Mihon / Tachiyomi (https://github.com/mihonapp/mihon, https://github.com/tachiyomiorg/tachiyomi)
---------------------------------------------------------------------------------------------------
-Licensed under the Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0).
+Portions of the manga source, extension and download support are adapted from
+Mihon (https://github.com/mihonapp/mihon), which is itself derived from
+Tachiyomi. Those parts are used under the Apache License, Version 2.0:
 
-The manga extension source API (app/src/main/java/eu/kanade/tachiyomi/), the chapter
-recognition/sanitizer logic, and the Cloudflare interceptor are adapted from Mihon/Tachiyomi so
-that Folio can load the same extension APKs. The package names under eu.kanade.tachiyomi are kept
-unchanged on purpose: extensions are compiled against those exact class names.
+    Copyright 2015 Javier Tomas
+    Copyright 2024 The Mihon Open Source Project
 
-Image decoder (ca.mpreg:imagedecoder)
---------------------------------------
-Licensed under the MIT License. Used for AVIF, JPEG XL and HEIF page decoding.
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        http://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+
+Adapted files, all modified from the originals:
+
+  app/src/main/java/eu/kanade/tachiyomi/**
+    The source API (eu.kanade.tachiyomi.source), its HTTP helpers
+    (eu.kanade.tachiyomi.network) and the Jsoup helpers. The package names are
+    kept deliberately so extensions built against the Tachiyomi/Mihon
+    extensions-lib can be loaded unchanged. Trimmed to the parts Folio uses:
+    there is no DNS-over-HTTPS selection and no dependency injection framework
+    beyond Injekt.
+
+  app/src/main/java/app/folio/manga/**
+    The source registry, extension loader and download manager, rewritten
+    against Folio's own container, Room database and file access rather than
+    Mihon's.
+
+  app/src/main/java/app/folio/core/model/ChapterRecognition.kt
+  app/src/test/java/app/folio/core/model/ChapterRecognitionTest.kt
+  app/src/main/java/app/folio/core/model/ChapterSanitizer.kt
+    Ported from Mihon with only the chapter type changed to Folio's own, so
+    chapter numbers and names come out as they do in Mihon. The chapter sync
+    rules in MangaChapterSync.kt follow Mihon's SyncChaptersWithSource.
+
+  app/src/main/java/app/folio/ui/screens/manga/SourceSettingsScreen.kt
+    The source preference fragment, after Mihon's SourcePreferencesScreen.
+
+Mihon is not affiliated with Folio and does not endorse it.
+
+Other third-party components
+----------------------------
+
+  ca.mpreg:imagedecoder (https://github.com/mpreg-ca/imagedecoder)
+    Decodes AVIF, JPEG XL, HEIF and JPEG 2000 manga pages. MIT License.

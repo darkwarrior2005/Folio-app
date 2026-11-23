@@ -1,6 +1,5 @@
 package app.folio.ui.screens.pomodoro
 
-import app.folio.ui.components.rememberNotificationPermissionRequest
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -13,8 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -40,7 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.folio.R
 import app.folio.data.db.PomodoroPhase
+import app.folio.ui.components.rememberNotificationPermissionRequest
 import app.folio.ui.folioViewModel
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.theme.LocalSpacing
 import app.folio.ui.util.Format
 
@@ -71,7 +70,7 @@ fun PomodoroScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            FolioIcons.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                         )
                     }

@@ -11,122 +11,236 @@ import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
-import eu.kanade.tachiyomi.util.awaitSingle
+import eu.kanade.tachiyomi.util.lang.awaitSingle
 import okhttp3.Headers
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
 import rx.Observable
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
 import uy.kohesive.injekt.injectLazy
+import java.net.URI
+import java.net.URISyntaxException
+import java.security.MessageDigest
 
 /**
- * The base class most Keiyoushi extensions extend. Its non-suspend `*Request`/`*Parse` methods
- * are the extension's actual override surface - keep those method names and signatures exact.
+ * Base class for a source backed by a website.
  */
 abstract class HttpSource : CatalogueSource {
 
-    private val network: NetworkHelper by injectLazy()
+    protected val network: NetworkHelper by injectLazy()
 
-    /** The source's own OkHttp client. Overridden sources may add interceptors (rate limits). */
-    open val client: OkHttpClient
-        get() = network.client
-
-    /** Base site URL, with no trailing slash. */
+    /**
+     * Base url of the website without a trailing slash, like `https://mysite.com`.
+     */
     abstract val baseUrl: String
 
-    override val id: Long by lazy { generateId(name, lang, versionId) }
+    /**
+     * The page "Open in browser" opens. Defaults to [baseUrl].
+     */
+    open fun getHomeUrl(): String = baseUrl
 
+    /**
+     * Raise this when a site changes so much that its old URLs no longer work; the source then
+     * gets a new [id] and is treated as a different source.
+     */
     open val versionId: Int = 1
 
-    open fun headersBuilder(): Headers.Builder = Headers.Builder()
-        .add("User-Agent", network.defaultUserAgentProvider())
+    /**
+     * Generated from the name, language and [versionId]. See [generateId].
+     */
+    override val id: Long by lazy { generateId(name, lang, versionId) }
 
-    open val headers: Headers by lazy { headersBuilder().build() }
+    val headers: Headers by lazy { headersBuilder().build() }
 
-    // ---- Popular ----
-    abstract fun popularMangaRequest(page: Int): Request
-    abstract fun popularMangaParse(response: Response): MangasPage
+    open val client: OkHttpClient get() = network.client
 
-    override fun fetchPopularManga(page: Int): Observable<MangasPage> =
-        client.newCall(popularMangaRequest(page)).asObservableSuccess()
-            .map { popularMangaParse(it) }
+    /**
+     * The first 16 hex characters (64 bits) of the MD5 of `"${name.lowercase()}/$lang/$versionId"`,
+     * with the sign bit cleared. Can be called directly to reproduce an older ID when a source is
+     * renamed and a migration is not wanted.
+     *
+     * @since extensions-lib 1.5
+     */
+    @Suppress("MemberVisibilityCanBePrivate")
+    protected fun generateId(name: String, lang: String, versionId: Int): Long {
+        val key = "${name.lowercase()}/$lang/$versionId"
+        val bytes = MessageDigest.getInstance("MD5").digest(key.toByteArray())
+        return (0..7).map { bytes[it].toLong() and 0xff shl 8 * (7 - it) }.reduce(Long::or) and Long.MAX_VALUE
+    }
 
-    // ---- Search ----
-    abstract fun searchMangaRequest(page: Int, query: String, filters: FilterList): Request
-    abstract fun searchMangaParse(response: Response): MangasPage
+    protected open fun headersBuilder(): Headers.Builder = Headers.Builder().apply {
+        add("User-Agent", network.defaultUserAgentProvider())
+    }
 
-    override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> =
-        client.newCall(searchMangaRequest(page, query, filters)).asObservableSuccess()
-            .map { searchMangaParse(it) }
+    override fun toString(): String = "$name (${lang.uppercase()})"
 
-    // ---- Latest ----
-    open fun latestUpdatesRequest(page: Int): Request =
-        throw UnsupportedOperationException("This source does not support latest")
-    open fun latestUpdatesParse(response: Response): MangasPage =
-        throw UnsupportedOperationException("This source does not support latest")
+    @Suppress("DEPRECATION")
+    @Deprecated("Use the suspend API instead", ReplaceWith("getPopularManga"))
+    override fun fetchPopularManga(page: Int): Observable<MangasPage> {
+        return client.newCall(popularMangaRequest(page))
+            .asObservableSuccess()
+            .map { response -> popularMangaParse(response) }
+    }
 
-    override fun fetchLatestUpdates(page: Int): Observable<MangasPage> =
-        client.newCall(latestUpdatesRequest(page)).asObservableSuccess()
-            .map { latestUpdatesParse(it) }
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun popularMangaRequest(page: Int): Request = throw UnsupportedOperationException()
 
-    // ---- Details ----
-    abstract fun mangaDetailsRequest(manga: SManga): Request
-    abstract fun mangaDetailsParse(response: Response): SManga
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun popularMangaParse(response: Response): MangasPage = throw UnsupportedOperationException()
 
-    override fun fetchMangaDetails(manga: SManga): Observable<SManga> =
-        client.newCall(mangaDetailsRequest(manga)).asObservableSuccess()
-            .map { mangaDetailsParse(it).apply { initialized = true } }
+    @Suppress("DEPRECATION")
+    @Deprecated("Use the suspend API instead", ReplaceWith("getSearchManga"))
+    override fun fetchSearchManga(page: Int, query: String, filters: FilterList): Observable<MangasPage> {
+        return client.newCall(searchMangaRequest(page, query, filters))
+            .asObservableSuccess()
+            .map { response -> searchMangaParse(response) }
+    }
 
-    open suspend fun getMangaUrl(manga: SManga): String = mangaDetailsRequest(manga).url.toString()
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun searchMangaRequest(
+        page: Int,
+        query: String,
+        filters: FilterList,
+    ): Request = throw UnsupportedOperationException()
 
-    // ---- Chapters ----
-    abstract fun chapterListRequest(manga: SManga): Request
-    abstract fun chapterListParse(response: Response): List<SChapter>
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun searchMangaParse(response: Response): MangasPage = throw UnsupportedOperationException()
 
-    override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> =
-        client.newCall(chapterListRequest(manga)).asObservableSuccess()
-            .map { chapterListParse(it) }
+    @Suppress("DEPRECATION")
+    @Deprecated("Use the suspend API instead", ReplaceWith("getLatestUpdates"))
+    override fun fetchLatestUpdates(page: Int): Observable<MangasPage> {
+        return client.newCall(latestUpdatesRequest(page))
+            .asObservableSuccess()
+            .map { response -> latestUpdatesParse(response) }
+    }
 
-    open suspend fun getChapterUrl(chapter: SChapter): String = chapter.url
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun latestUpdatesRequest(page: Int): Request = throw UnsupportedOperationException()
 
-    // ---- Pages ----
-    abstract fun pageListRequest(chapter: SChapter): Request
-    abstract fun pageListParse(response: Response): List<Page>
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun latestUpdatesParse(response: Response): MangasPage = throw UnsupportedOperationException()
 
-    override fun fetchPageList(chapter: SChapter): Observable<List<Page>> =
-        client.newCall(pageListRequest(chapter)).asObservableSuccess()
-            .map { pageListParse(it) }
+    @Suppress("DEPRECATION")
+    @Deprecated("Use the combined suspend API instead", replaceWith = ReplaceWith("getMangaUpdate"))
+    override fun fetchMangaDetails(manga: SManga): Observable<SManga> {
+        return client.newCall(mangaDetailsRequest(manga))
+            .asObservableSuccess()
+            .map { response -> mangaDetailsParse(response).apply { initialized = true } }
+    }
 
-    open fun imageUrlRequest(page: Page): Request = GET(page.imageUrl!!, headers)
-    open fun imageUrlParse(response: Response): String =
-        throw UnsupportedOperationException("Not used")
+    @Deprecated(HELPER_DEPRECATION)
+    open fun mangaDetailsRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
 
-    open fun imageRequest(page: Page): Request = GET(page.imageUrl!!, headers)
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun mangaDetailsParse(response: Response): SManga = throw UnsupportedOperationException()
 
-    suspend fun fetchImage(page: Page): Response =
-        client.newCall(imageRequest(page)).awaitSuccess()
+    @Suppress("DEPRECATION")
+    @Deprecated("Use the combined suspend API instead", replaceWith = ReplaceWith("getMangaUpdate"))
+    override fun fetchChapterList(manga: SManga): Observable<List<SChapter>> {
+        return client.newCall(chapterListRequest(manga))
+            .asObservableSuccess()
+            .map { response -> chapterListParse(response) }
+    }
 
-    /** Coroutine-friendly wrappers that newer extensions and Folio's own code call. */
-    open suspend fun getPopularManga(page: Int): MangasPage = fetchPopularManga(page).awaitSingle()
-    open suspend fun getSearchManga(page: Int, query: String, filters: FilterList): MangasPage =
-        fetchSearchManga(page, query, filters).awaitSingle()
-    open suspend fun getLatestUpdates(page: Int): MangasPage = fetchLatestUpdates(page).awaitSingle()
-    open suspend fun getMangaDetails(manga: SManga): SManga = fetchMangaDetails(manga).awaitSingle()
-    open suspend fun getChapterList(manga: SManga): List<SChapter> = fetchChapterList(manga).awaitSingle()
-    open suspend fun getPageList(chapter: SChapter): List<Page> = fetchPageList(chapter).awaitSingle()
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun chapterListRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
 
-    override fun toString() = "$name (${lang.uppercase()})"
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun chapterListParse(response: Response): List<SChapter> = throw UnsupportedOperationException()
 
-    override fun equals(other: Any?) = other is HttpSource && id == other.id
-    override fun hashCode() = id.hashCode()
+    @Suppress("DEPRECATION")
+    @Deprecated("Use the suspend API instead", ReplaceWith("getPageList"))
+    override fun fetchPageList(chapter: SChapter): Observable<List<Page>> {
+        return client.newCall(pageListRequest(chapter))
+            .asObservableSuccess()
+            .map { response -> pageListParse(response) }
+    }
 
-    companion object {
-        fun generateId(name: String, lang: String, versionId: Int): Long {
-            val key = "${name.lowercase()}/$lang/$versionId"
-            val bytes = java.security.MessageDigest.getInstance("MD5").digest(key.toByteArray())
-            return (0..7).fold(0L) { acc, i -> acc shl 8 or (bytes[i].toLong() and 0xff) } and Long.MAX_VALUE
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun pageListRequest(chapter: SChapter): Request = GET(baseUrl + chapter.url, headers)
+
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun pageListParse(response: Response): List<Page> = throw UnsupportedOperationException()
+
+    @Suppress("DEPRECATION")
+    @Deprecated("Use the suspend API instead", ReplaceWith("getImageUrl"))
+    open fun fetchImageUrl(page: Page): Observable<String> {
+        return client.newCall(imageUrlRequest(page))
+            .asObservableSuccess()
+            .map { imageUrlParse(it) }
+    }
+
+    /**
+     * Resolves the image URL of [page]. Only called when [Page.imageUrl] is null.
+     *
+     * @since tachiyomix 1.6
+     */
+    @Suppress("DEPRECATION")
+    open suspend fun getImageUrl(page: Page): String = fetchImageUrl(page).awaitSingle()
+
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun imageUrlRequest(page: Page): Request = GET(page.url, headers)
+
+    @Deprecated(HELPER_DEPRECATION)
+    protected open fun imageUrlParse(response: Response): String = throw UnsupportedOperationException()
+
+    suspend fun getImage(page: Page, existingSize: Long = 0L): Response {
+        return client.newCachelessCallWithProgress(imageRequest(page), page, existingSize)
+            .awaitSuccess()
+    }
+
+    protected open fun imageRequest(page: Page): Request = GET(page.imageUrl!!, headers)
+
+    /**
+     * Stores the chapter URL without scheme and domain, so saved URLs survive a domain change.
+     */
+    @Suppress("Unused")
+    fun SChapter.setUrlWithoutDomain(url: String) {
+        this.url = getUrlWithoutDomain(url)
+    }
+
+    /**
+     * Stores the manga URL without scheme and domain, so saved URLs survive a domain change.
+     */
+    @Suppress("Unused")
+    fun SManga.setUrlWithoutDomain(url: String) {
+        this.url = getUrlWithoutDomain(url)
+    }
+
+    private fun getUrlWithoutDomain(orig: String): String {
+        return try {
+            val uri = URI(orig.replace(" ", "%20"))
+            var out = uri.path
+            if (uri.query != null) {
+                out += "?" + uri.query
+            }
+            if (uri.fragment != null) {
+                out += "#" + uri.fragment
+            }
+            out
+        } catch (_: URISyntaxException) {
+            orig
         }
+    }
+
+    /**
+     * @since extensions-lib 1.4
+     */
+    @Suppress("DEPRECATION")
+    open fun getMangaUrl(manga: SManga): String = mangaDetailsRequest(manga).url.toString()
+
+    /**
+     * @since extensions-lib 1.4
+     */
+    @Suppress("DEPRECATION")
+    open fun getChapterUrl(chapter: SChapter): String = pageListRequest(chapter).url.toString()
+
+    @Deprecated("All modifications should be done when constructing the chapter")
+    open fun prepareNewChapter(chapter: SChapter, manga: SManga) {}
+
+    private companion object {
+        const val HELPER_DEPRECATION = "The helper functions are inherently limiting and hide the " +
+            "underlying implementation. Source developers should make their own implementation " +
+            "according to their needs."
     }
 }

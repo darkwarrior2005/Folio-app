@@ -6,15 +6,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.DragHandle
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material.icons.rounded.RemoveCircleOutline
-import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -42,6 +33,7 @@ import app.folio.ui.LocalContainer
 import app.folio.ui.components.ConfirmDialog
 import app.folio.ui.components.ReorderableColumn
 import app.folio.ui.components.TextInputDialog
+import app.folio.ui.icons.FolioIcons
 import kotlinx.coroutines.launch
 
 @Composable
@@ -62,21 +54,21 @@ fun MusicCollectionScreen(collectionId: Long, onBack: () -> Unit) {
                 title = { Text(collection?.name.orEmpty()) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(FolioIcons.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     IconButton(onClick = { container.musicPlayer.playTracks(tracks.filterNot { it.missing }, PlaybackSource.Library) }) {
-                        Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.music_play))
+                        Icon(FolioIcons.PlayArrow, contentDescription = stringResource(R.string.music_play))
                     }
                     IconButton(onClick = { container.musicPlayer.playTracks(tracks.filterNot { it.missing }, PlaybackSource.Library, shuffle = true) }) {
-                        Icon(Icons.Rounded.Shuffle, contentDescription = stringResource(R.string.music_shuffle))
+                        Icon(FolioIcons.Shuffle, contentDescription = stringResource(R.string.music_shuffle))
                     }
                     IconButton(onClick = { renaming = true }) {
-                        Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.action_rename))
+                        Icon(FolioIcons.Edit, contentDescription = stringResource(R.string.action_rename))
                     }
                     IconButton(onClick = { deleting = true }) {
-                        Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.action_delete))
+                        Icon(FolioIcons.Delete, contentDescription = stringResource(R.string.action_delete))
                     }
                 },
             )
@@ -84,7 +76,7 @@ fun MusicCollectionScreen(collectionId: Long, onBack: () -> Unit) {
         floatingActionButton = {
             ExtendedFloatingActionButton(
                 onClick = { adding = true },
-                icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
+                icon = { Icon(FolioIcons.Add, contentDescription = null) },
                 text = { Text(stringResource(R.string.music_add_tracks)) },
             )
         },
@@ -102,10 +94,10 @@ fun MusicCollectionScreen(collectionId: Long, onBack: () -> Unit) {
                 ListItem(
                     headlineContent = { Text(track.displayTitle, maxLines = 1) },
                     supportingContent = { track.displayArtist?.let { Text(it, maxLines = 1) } },
-                    leadingContent = { Icon(Icons.Rounded.DragHandle, contentDescription = null, modifier = dragHandle) },
+                    leadingContent = { Icon(FolioIcons.DragHandle, contentDescription = null, modifier = dragHandle) },
                     trailingContent = {
                         IconButton(onClick = { scope.launch { music.removeFromCollection(collectionId, listOf(track.id)) } }) {
-                            Icon(Icons.Rounded.RemoveCircleOutline, contentDescription = stringResource(R.string.action_remove))
+                            Icon(FolioIcons.RemoveCircleOutline, contentDescription = stringResource(R.string.action_remove))
                         }
                     },
                 )

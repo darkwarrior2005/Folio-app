@@ -10,12 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.MergeType
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -41,6 +35,7 @@ import app.folio.ui.components.EmptyState
 import app.folio.ui.components.PickerDialogHost
 import app.folio.ui.components.TextInputDialog
 import app.folio.ui.folioViewModel
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.theme.LocalSpacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -62,7 +57,7 @@ fun CategoriesScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            FolioIcons.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                         )
                     }
@@ -71,7 +66,7 @@ fun CategoriesScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { creating = true }) {
-                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.action_create))
+                Icon(FolioIcons.Add, contentDescription = stringResource(R.string.action_create))
             }
         },
     ) { padding ->
@@ -110,10 +105,10 @@ fun CategoriesScreen(
                             )
                         }
                         IconButton(onClick = { renaming = entry.category.id to entry.category.name }) {
-                            Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.action_rename))
+                            Icon(FolioIcons.Edit, contentDescription = stringResource(R.string.action_rename))
                         }
                         IconButton(onClick = { deleting = entry.category.id }) {
-                            Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.action_delete))
+                            Icon(FolioIcons.Delete, contentDescription = stringResource(R.string.action_delete))
                         }
                     }
                 }
@@ -183,7 +178,7 @@ fun TagsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            FolioIcons.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                         )
                     }
@@ -231,15 +226,15 @@ fun TagsScreen(
                     }
                     IconButton(onClick = { merging = entry.tag.id }) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.MergeType,
+                            FolioIcons.MergeType,
                             contentDescription = stringResource(R.string.action_more),
                         )
                     }
                     IconButton(onClick = { renaming = entry.tag.id to entry.tag.name }) {
-                        Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.action_rename))
+                        Icon(FolioIcons.Edit, contentDescription = stringResource(R.string.action_rename))
                     }
                     IconButton(onClick = { deleting = entry.tag.id }) {
-                        Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.action_delete))
+                        Icon(FolioIcons.Delete, contentDescription = stringResource(R.string.action_delete))
                     }
                 }
             }

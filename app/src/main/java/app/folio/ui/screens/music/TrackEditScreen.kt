@@ -1,6 +1,5 @@
 package app.folio.ui.screens.music
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -13,12 +12,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material3.InputChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.InputChip
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SuggestionChip
@@ -43,6 +40,7 @@ import app.folio.R
 import app.folio.core.model.TagNormalizer
 import app.folio.data.repo.TrackEdit
 import app.folio.ui.LocalContainer
+import app.folio.ui.icons.FolioIcons
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -87,7 +85,7 @@ fun TrackEditScreen(trackId: Long, onBack: () -> Unit) {
                 title = { Text(stringResource(R.string.music_edit_track)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(FolioIcons.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
@@ -132,7 +130,7 @@ fun TrackEditScreen(trackId: Long, onBack: () -> Unit) {
                         selected = false,
                         onClick = { tagNames.remove(name) },
                         label = { Text(name) },
-                        trailingIcon = { Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_remove)) },
+                        trailingIcon = { Icon(FolioIcons.Close, contentDescription = stringResource(R.string.action_remove)) },
                     )
                 }
             }

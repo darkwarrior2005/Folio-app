@@ -1,22 +1,47 @@
 package eu.kanade.tachiyomi.source.model
 
+import android.net.Uri
 import eu.kanade.tachiyomi.network.ProgressListener
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
+@Serializable
 open class Page(
     val index: Int,
     val url: String = "",
     var imageUrl: String? = null,
+    // Deprecated, but extensions still reference it.
+    @Transient var uri: Uri? = null,
 ) : ProgressListener {
 
-    val number: Int get() = index + 1
+    val number: Int
+        get() = index + 1
 
-    @Volatile
-    var status: Int = State.QUEUE.value
+    @Transient
+    private val _statusFlow = MutableStateFlow<State>(State.Queue)
 
-    @Volatile
-    var progress: Int = 0
+    @Transient
+    val statusFlow = _statusFlow.asStateFlow()
+    var status: State
+        get() = _statusFlow.value
+        set(value) {
+            _statusFlow.value = value
+        }
 
-    override fun onProgressChange(bytesRead: Long, contentLength: Long) {
+    @Transient
+    private val _progressFlow = MutableStateFlow(0)
+
+    @Transient
+    val progressFlow = _progressFlow.asStateFlow()
+    var progress: Int
+        get() = _progressFlow.value
+        set(value) {
+            _progressFlow.value = value
+        }
+
+    override fun update(bytesRead: Long, contentLength: Long, done: Boolean) {
         progress = if (contentLength > 0) {
             (100 * bytesRead / contentLength).toInt()
         } else {
@@ -24,11 +49,11 @@ open class Page(
         }
     }
 
-    enum class State(val value: Int) {
-        QUEUE(0),
-        LOAD_PAGE(1),
-        DOWNLOAD_IMAGE(2),
-        READY(3),
-        ERROR(4),
+    sealed interface State {
+        data object Queue : State
+        data object LoadPage : State
+        data object DownloadImage : State
+        data object Ready : State
+        data class Error(val error: Throwable) : State
     }
 }

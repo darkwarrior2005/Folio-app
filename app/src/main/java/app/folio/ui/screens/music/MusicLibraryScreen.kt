@@ -1,15 +1,10 @@
 package app.folio.ui.screens.music
 
-import kotlinx.coroutines.launch
-import androidx.lifecycle.viewModelScope
-import androidx.compose.material.icons.rounded.RemoveCircleOutline
-import androidx.compose.material.icons.rounded.MoreVert
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.foundation.layout.Box
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,14 +17,6 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.CreateNewFolder
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExtendedFloatingActionButton
@@ -64,13 +51,16 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewModelScope
 import app.folio.R
 import app.folio.data.db.TrackEntity
 import app.folio.ui.components.EmptyState
 import app.folio.ui.components.TextInputDialog
 import app.folio.ui.folioViewModel
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.util.Format
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
 
 @Composable
 fun MusicLibraryScreen(
@@ -112,7 +102,7 @@ fun MusicLibraryScreen(
                 title = { Text(stringResource(R.string.music_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(FolioIcons.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
             )
@@ -121,13 +111,13 @@ fun MusicLibraryScreen(
             Column(horizontalAlignment = Alignment.End) {
                 ExtendedFloatingActionButton(
                     onClick = { if (tab == 1) showNewCollection = true else showImportMenu = true },
-                    icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
+                    icon = { Icon(FolioIcons.Add, contentDescription = null) },
                     text = { Text(stringResource(if (tab == 1) R.string.music_new_collection else R.string.music_import)) },
                 )
                 DropdownMenu(expanded = showImportMenu, onDismissRequest = { showImportMenu = false }) {
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.music_import_files)) },
-                        leadingIcon = { Icon(Icons.Rounded.MusicNote, contentDescription = null) },
+                        leadingIcon = { Icon(FolioIcons.MusicNote, contentDescription = null) },
                         onClick = {
                             showImportMenu = false
                             pickFiles.launch(arrayOf("audio/*"))
@@ -135,7 +125,7 @@ fun MusicLibraryScreen(
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.music_import_folder)) },
-                        leadingIcon = { Icon(Icons.Rounded.CreateNewFolder, contentDescription = null) },
+                        leadingIcon = { Icon(FolioIcons.CreateNewFolder, contentDescription = null) },
                         onClick = {
                             showImportMenu = false
                             pickFolder.launch(null)
@@ -171,7 +161,7 @@ fun MusicLibraryScreen(
                 )
                 1 -> LazyColumn(contentPadding = PaddingValues(bottom = 96.dp)) {
                     if (collections.isEmpty()) {
-                        item { EmptyState(title = stringResource(R.string.music_no_collections), icon = Icons.Rounded.LibraryMusic) }
+                        item { EmptyState(title = stringResource(R.string.music_no_collections), icon = FolioIcons.LibraryMusic) }
                     }
                     items(collections, key = { it.collection.id }) { entry ->
                         ListItem(
@@ -179,7 +169,7 @@ fun MusicLibraryScreen(
                             supportingContent = {
                                 Text(pluralStringResource(R.plurals.music_track_count, entry.trackCount, entry.trackCount))
                             },
-                            leadingContent = { Icon(Icons.Rounded.LibraryMusic, contentDescription = null) },
+                            leadingContent = { Icon(FolioIcons.LibraryMusic, contentDescription = null) },
                             modifier = Modifier.clickable { onOpenCollection(entry.collection.id) },
                         )
                     }
@@ -265,7 +255,7 @@ private fun TracksTab(
             EmptyState(
                 title = stringResource(R.string.music_empty_title),
                 message = stringResource(R.string.music_empty_message),
-                icon = Icons.Rounded.MusicNote,
+                icon = FolioIcons.MusicNote,
             )
         }
         LazyColumn(contentPadding = PaddingValues(bottom = 96.dp)) {
@@ -291,13 +281,13 @@ private fun TracksTab(
                                 modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
                             )
                         } else {
-                            Icon(Icons.Rounded.MusicNote, contentDescription = null, modifier = Modifier.size(48.dp).padding(12.dp))
+                            Icon(FolioIcons.MusicNote, contentDescription = null, modifier = Modifier.size(48.dp).padding(12.dp))
                         }
                     },
                     trailingContent = {
                         Row {
                             IconButton(onClick = { onPlay(track) }, enabled = !track.missing) {
-                                Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.music_play))
+                                Icon(FolioIcons.PlayArrow, contentDescription = stringResource(R.string.music_play))
                             }
                             TrackMenu(
                                 onEdit = { onEdit(track.id) },
@@ -320,12 +310,12 @@ private fun TrackMenu(onEdit: () -> Unit, onRemove: () -> Unit, onDelete: () -> 
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) {
-            Icon(Icons.Rounded.MoreVert, contentDescription = stringResource(R.string.action_more))
+            Icon(FolioIcons.MoreVert, contentDescription = stringResource(R.string.action_more))
         }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_edit)) },
-                leadingIcon = { Icon(Icons.Rounded.Edit, contentDescription = null) },
+                leadingIcon = { Icon(FolioIcons.Edit, contentDescription = null) },
                 onClick = {
                     open = false
                     onEdit()
@@ -333,7 +323,7 @@ private fun TrackMenu(onEdit: () -> Unit, onRemove: () -> Unit, onDelete: () -> 
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.music_remove_from_library)) },
-                leadingIcon = { Icon(Icons.Rounded.RemoveCircleOutline, contentDescription = null) },
+                leadingIcon = { Icon(FolioIcons.RemoveCircleOutline, contentDescription = null) },
                 onClick = {
                     open = false
                     onRemove()
@@ -341,7 +331,7 @@ private fun TrackMenu(onEdit: () -> Unit, onRemove: () -> Unit, onDelete: () -> 
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.music_delete_file), color = MaterialTheme.colorScheme.error) },
-                leadingIcon = { Icon(Icons.Rounded.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+                leadingIcon = { Icon(FolioIcons.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
                 onClick = {
                     open = false
                     onDelete()

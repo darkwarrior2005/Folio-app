@@ -1,13 +1,33 @@
+@file:Suppress("FunctionName")
+
 package eu.kanade.tachiyomi.network
 
 import okhttp3.CacheControl
+import okhttp3.FormBody
 import okhttp3.Headers
+import okhttp3.HttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
+import okhttp3.RequestBody
+import kotlin.time.Duration.Companion.minutes
+
+private val DEFAULT_CACHE_CONTROL = CacheControl.Builder().maxAge(10.minutes).build()
+private val DEFAULT_HEADERS = Headers.Builder().build()
+private val DEFAULT_BODY: RequestBody = FormBody.Builder().build()
 
 fun GET(
     url: String,
-    headers: Headers = Headers.Builder().build(),
-    cache: CacheControl = CacheControl.FORCE_NETWORK,
+    headers: Headers = DEFAULT_HEADERS,
+    cache: CacheControl = DEFAULT_CACHE_CONTROL,
+): Request = GET(url.toHttpUrl(), headers, cache)
+
+/**
+ * @since extensions-lib 1.4
+ */
+fun GET(
+    url: HttpUrl,
+    headers: Headers = DEFAULT_HEADERS,
+    cache: CacheControl = DEFAULT_CACHE_CONTROL,
 ): Request = Request.Builder()
     .url(url)
     .headers(headers)
@@ -16,31 +36,36 @@ fun GET(
 
 fun POST(
     url: String,
-    headers: Headers = Headers.Builder().build(),
-    body: okhttp3.RequestBody = okhttp3.FormBody.Builder().build(),
-    cache: CacheControl = CacheControl.FORCE_NETWORK,
+    headers: Headers = DEFAULT_HEADERS,
+    body: RequestBody = DEFAULT_BODY,
+    cache: CacheControl = DEFAULT_CACHE_CONTROL,
 ): Request = Request.Builder()
     .url(url)
+    .post(body)
     .headers(headers)
     .cacheControl(cache)
-    .post(body)
     .build()
 
 fun PUT(
     url: String,
-    headers: Headers = Headers.Builder().build(),
-    body: okhttp3.RequestBody = okhttp3.FormBody.Builder().build(),
+    headers: Headers = DEFAULT_HEADERS,
+    body: RequestBody = DEFAULT_BODY,
+    cache: CacheControl = DEFAULT_CACHE_CONTROL,
 ): Request = Request.Builder()
     .url(url)
-    .headers(headers)
     .put(body)
+    .headers(headers)
+    .cacheControl(cache)
     .build()
 
 fun DELETE(
     url: String,
-    headers: Headers = Headers.Builder().build(),
+    headers: Headers = DEFAULT_HEADERS,
+    body: RequestBody = DEFAULT_BODY,
+    cache: CacheControl = DEFAULT_CACHE_CONTROL,
 ): Request = Request.Builder()
     .url(url)
+    .delete(body)
     .headers(headers)
-    .delete()
+    .cacheControl(cache)
     .build()

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -16,18 +17,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Check
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -38,8 +43,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import app.folio.R
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.theme.LocalSpacing
 
 @Composable
@@ -146,7 +154,7 @@ fun FolioChip(
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         if (selected && leadingIcon == null) {
-            Icon(Icons.Rounded.Check, contentDescription = null, tint = content, modifier = Modifier.size(15.dp))
+            Icon(FolioIcons.Check, contentDescription = null, tint = content, modifier = Modifier.size(15.dp))
         } else if (leadingIcon != null) {
             Icon(leadingIcon, contentDescription = null, tint = content, modifier = Modifier.size(15.dp))
         }
@@ -308,4 +316,122 @@ fun Gap(size: androidx.compose.ui.unit.Dp) {
 @Composable
 fun HorizontalGap(size: androidx.compose.ui.unit.Dp) {
     Spacer(Modifier.width(size))
+}
+
+/** The scaffold every settings sub-screen (and now any other settings-shaped screen) is built on. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsScaffold(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
+    val spacing = LocalSpacing.current
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            FolioIcons.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
+                    }
+                },
+            )
+        },
+    ) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = spacing.screenPadding)
+                .padding(bottom = 64.dp),
+        ) {
+            content()
+        }
+    }
+}
+
+@Composable
+fun NavigationRow(title: String, subtitle: String?, onClick: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 14.dp, horizontal = 6.dp),
+    ) {
+        Text(text = title, style = MaterialTheme.typography.bodyLarge)
+        subtitle?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onChange(!checked) }
+            .padding(vertical = 12.dp, horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        Switch(checked = checked, onCheckedChange = onChange)
+    }
+}
+
+@Composable
+fun SliderRow(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    display: String,
+    onChange: (Float) -> Unit,
+) {
+    Column(Modifier.padding(vertical = 8.dp, horizontal = 6.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(display, style = MaterialTheme.typography.labelMedium)
+        }
+        Slider(
+            value = value.coerceIn(range.start, range.endInclusive),
+            valueRange = range,
+            onValueChange = onChange,
+        )
+    }
+}
+
+@Composable
+fun StepperRow(label: String, value: String, onDecrease: () -> Unit, onIncrease: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp, horizontal = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+        TextButton(onClick = onDecrease) { Text("−") }
+        Text(value, style = MaterialTheme.typography.labelLarge)
+        TextButton(onClick = onIncrease) { Text("+") }
+    }
+}
+
+/** Shown wherever a screen needs manga sources but they're off, with a way to turn them on. */
+@Composable
+fun SourcesOffEmptyState(onOpenMangaSettings: () -> Unit, modifier: Modifier = Modifier) {
+    EmptyState(
+        title = stringResource(R.string.manga_sources_off_title),
+        message = stringResource(R.string.manga_sources_off_message),
+        icon = FolioIcons.Extension,
+        actionLabel = stringResource(R.string.manga_sources_off_action),
+        onAction = onOpenMangaSettings,
+        modifier = modifier,
+    )
 }

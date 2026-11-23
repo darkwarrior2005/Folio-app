@@ -1,40 +1,22 @@
 package eu.kanade.tachiyomi.util
 
-import eu.kanade.tachiyomi.network.NetworkHelper
-import okhttp3.Headers
-import okhttp3.OkHttpClient
-import okhttp3.Request
+import okhttp3.Response
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
-import uy.kohesive.injekt.Injekt
-import uy.kohesive.injekt.api.get
+import org.jsoup.nodes.Element
 
-private val jsoupNetworkHelper: NetworkHelper by lazy { Injekt.get<NetworkHelper>() }
+fun Element.selectText(css: String, defaultValue: String? = null): String? =
+    select(css).first()?.text() ?: defaultValue
 
-fun okhttp3.Response.asJsoup(html: String? = null): Document {
-    return Jsoup.parse(html ?: body.string(), request.url.toString())
-}
+fun Element.selectInt(css: String, defaultValue: Int = 0): Int =
+    select(css).first()?.text()?.toInt() ?: defaultValue
 
-fun OkHttpClient.newCallWithJsoup(request: Request): Document {
-    newCall(request).execute().use { response -> return response.asJsoup() }
-}
+fun Element.attrOrText(css: String): String = if (css != "text") attr(css) else text()
 
-fun String.parseAsHtml(baseUrl: String = ""): Document = Jsoup.parse(this, baseUrl)
-
-fun getUrlWithoutDomain(orig: String): String {
-    return try {
-        val uri = java.net.URI(orig.replace(" ", "%20"))
-        var out = uri.path
-        if (uri.query != null) out += "?" + uri.query
-        if (uri.fragment != null) out += "#" + uri.fragment
-        out
-    } catch (_: Exception) {
-        orig
-    }
-}
-
-fun headersOf(vararg pairs: Pair<String, String>): Headers {
-    val builder = Headers.Builder()
-    pairs.forEach { (name, value) -> builder.add(name, value) }
-    return builder.build()
-}
+/**
+ * Returns a Jsoup document for this response.
+ *
+ * @param html the already-read body, if it was read before calling this.
+ */
+fun Response.asJsoup(html: String? = null): Document =
+    Jsoup.parse(html ?: body.string(), request.url.toString())

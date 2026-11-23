@@ -1,4 +1,6 @@
 package eu.kanade.tachiyomi.source
 
-/** A source whose traffic should not count against a "download over Wi-Fi only" setting. */
+/**
+ * A source whose traffic does not need to be rationed, typically self-hosted.
+ */
 interface UnmeteredSource

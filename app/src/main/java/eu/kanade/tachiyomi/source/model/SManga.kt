@@ -1,41 +1,60 @@
+@file:Suppress("PropertyName")
+
 package eu.kanade.tachiyomi.source.model
 
-interface SManga {
+import kotlinx.serialization.json.JsonObject
+import java.io.Serializable
+
+/**
+ * A manga as described by a source. Ported from Mihon (Apache-2.0); the package name is kept so
+ * extensions built against the Tachiyomi/Mihon extensions-lib can be loaded unchanged.
+ */
+interface SManga : Serializable {
 
     var url: String
 
     var title: String
 
+    var thumbnail_url: String?
+
     var artist: String?
 
     var author: String?
+
+    var status: Int
 
     var description: String?
 
     var genre: String?
 
-    var status: Int
-
-    var thumbnail_url: String?
-
     var update_strategy: UpdateStrategy
 
     var initialized: Boolean
+
+    /**
+     * Extra source-specific metadata. Not shown to the user.
+     *
+     * @since tachiyomix 1.6
+     */
+    var memo: JsonObject
 
     fun getGenres(): List<String>? {
         if (genre.isNullOrBlank()) return null
         return genre?.split(", ")?.map { it.trim() }?.filterNot { it.isBlank() }?.distinct()
     }
 
-    fun copyFrom(other: SManga) {
-        if (other.author != null) author = other.author
-        if (other.artist != null) artist = other.artist
-        if (other.description != null) description = other.description
-        if (other.genre != null) genre = other.genre
-        if (other.thumbnail_url != null) thumbnail_url = other.thumbnail_url
-        status = other.status
-        update_strategy = other.update_strategy
-        if (!initialized) initialized = other.initialized
+    fun copy() = create().also {
+        it.url = url
+        it.title = title
+        it.artist = artist
+        it.author = author
+        it.description = description
+        it.genre = genre
+        it.status = status
+        it.thumbnail_url = thumbnail_url
+        it.update_strategy = update_strategy
+        it.initialized = initialized
+        it.memo = memo
     }
 
     companion object {

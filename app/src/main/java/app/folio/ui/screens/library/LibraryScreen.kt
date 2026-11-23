@@ -2,6 +2,7 @@ package app.folio.ui.screens.library
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -20,16 +21,8 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.Book
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.FilterList
-import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.Search
-import androidx.compose.material.icons.rounded.Sort
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -39,14 +32,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -59,13 +56,19 @@ import app.folio.core.model.BookSort
 import app.folio.core.model.LibraryBook
 import app.folio.core.model.LibraryGrouping
 import app.folio.core.model.LibraryLayout
+import app.folio.core.model.MangaSort
 import app.folio.core.model.SmartCollection
 import app.folio.importer.DuplicateAction
+import app.folio.ui.LocalContainer
 import app.folio.ui.components.BookGridCard
 import app.folio.ui.components.BookListRow
 import app.folio.ui.components.EmptyState
 import app.folio.ui.components.FolioChip
 import app.folio.ui.folioViewModel
+import app.folio.ui.icons.FolioIcons
+import app.folio.ui.screens.manga.MangaLibraryTabContent
+import app.folio.ui.screens.manga.MangaLibraryViewModel
+import app.folio.ui.screens.manga.labelRes
 import app.folio.ui.theme.LocalSpacing
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -76,9 +79,15 @@ fun LibraryScreen(
     onSearch: () -> Unit,
     onCollections: () -> Unit,
     onMusic: () -> Unit,
+    onOpenManga: (Long) -> Unit,
+    onBrowseManga: () -> Unit,
+    onFromWeb: () -> Unit,
+    onMangaExtensions: () -> Unit,
+    onMangaDownloads: () -> Unit,
+    onEnableMangaSources: () -> Unit,
+    onOpenSourceWebView: (sourceId: Long) -> Unit,
     viewModel: LibraryViewModel = folioViewModel { LibraryViewModel(it) },
-    /** Shown under the top bar, e.g. the Books | Manga switcher. */
-    tabs: (@Composable () -> Unit)? = null,
+    mangaViewModel: MangaLibraryViewModel = folioViewModel { MangaLibraryViewModel(it) },
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val books by viewModel.books.collectAsStateWithLifecycle()
@@ -89,9 +98,25 @@ fun LibraryScreen(
     val duplicate by viewModel.duplicate.collectAsStateWithLifecycle()
     val spacing = LocalSpacing.current
 
+    val mangaSort by mangaViewModel.sort.collectAsStateWithLifecycle()
+    val mangaQueueSize by mangaViewModel.queueSize.collectAsStateWithLifecycle()
+
+    var tab by rememberSaveable { mutableIntStateOf(0) }
+
+    // A search handed over from elsewhere (a manga with no chapters in its own source).
+    val container = LocalContainer.current
+    val pendingSearch by container.pendingMangaSearch.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingSearch) {
+        val title = pendingSearch ?: return@LaunchedEffect
+        container.pendingMangaSearch.value = null
+        tab = 1
+        mangaViewModel.setQuery(title)
+        mangaViewModel.searchSources()
+    }
     var showFilters by remember { mutableStateOf(false) }
-    var showSortMenu by remember { mutableStateOf(false) }
-    var showLayoutMenu by remember { mutableStateOf(false) }
+    var showDisplayOptions by remember { mutableStateOf(false) }
+    var showMangaSortMenu by remember { mutableStateOf(false) }
+    var showFabMenu by remember { mutableStateOf(false) }
     var actionTarget by remember { mutableStateOf<LibraryBook?>(null) }
     var showBulkSheet by remember { mutableStateOf(false) }
 
@@ -102,17 +127,16 @@ fun LibraryScreen(
         uri?.let { viewModel.importFolder(it.toString()) }
     }
 
-    val selectionMode = selection.isNotEmpty()
+    val selectionMode = tab == 0 && selection.isNotEmpty()
 
     Scaffold(
         topBar = {
-            Column {
             if (selectionMode) {
                 TopAppBar(
                     title = { Text(stringResource(R.string.library_selected_count, selection.size)) },
                     navigationIcon = {
                         IconButton(onClick = viewModel::clearSelection) {
-                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_close))
+                            Icon(FolioIcons.Close, contentDescription = stringResource(R.string.action_close))
                         }
                     },
                     actions = {
@@ -129,83 +153,109 @@ fun LibraryScreen(
                     title = { Text(stringResource(R.string.library_title)) },
                     actions = {
                         IconButton(onClick = onMusic) {
-                            Icon(Icons.Rounded.LibraryMusic, contentDescription = stringResource(R.string.music_title))
+                            Icon(FolioIcons.LibraryMusic, contentDescription = stringResource(R.string.music_title))
                         }
-                        IconButton(onClick = onSearch) {
-                            Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.action_search))
-                        }
-                        IconButton(onClick = { showFilters = true }) {
-                            Icon(
-                                Icons.Rounded.FilterList,
-                                contentDescription = stringResource(R.string.library_filter),
-                                tint = if (filter.activeCount > 0) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            )
-                        }
-                        Box {
-                            IconButton(onClick = { showSortMenu = true }) {
-                                Icon(Icons.Rounded.Sort, contentDescription = stringResource(R.string.library_sort))
+                        if (tab == 0) {
+                            IconButton(onClick = onSearch) {
+                                Icon(FolioIcons.Search, contentDescription = stringResource(R.string.action_search))
                             }
-                            DropdownMenu(expanded = showSortMenu, onDismissRequest = { showSortMenu = false }) {
-                                BookSort.entries.forEach { sort ->
-                                    DropdownMenuItem(
-                                        text = { Text(sort.label()) },
-                                        trailingIcon = {
-                                            if (settings.library.sort == sort) {
-                                                Text(if (settings.library.sortAscending) "↑" else "↓")
-                                            }
-                                        },
-                                        onClick = {
-                                            viewModel.setSort(sort)
-                                            showSortMenu = false
-                                        },
-                                    )
+                            IconButton(onClick = { showFilters = true }) {
+                                Icon(
+                                    FolioIcons.FilterList,
+                                    contentDescription = stringResource(R.string.library_filter),
+                                    tint = if (filter.activeCount > 0) {
+                                        MaterialTheme.colorScheme.primary
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
+                            }
+                            IconButton(onClick = { showDisplayOptions = true }) {
+                                Icon(
+                                    FolioIcons.Tune,
+                                    contentDescription = stringResource(R.string.library_display_options),
+                                )
+                            }
+                        } else {
+                            IconButton(onClick = onMangaDownloads) {
+                                BadgedBox(badge = { if (mangaQueueSize > 0) Badge { Text("$mangaQueueSize") } }) {
+                                    Icon(FolioIcons.Download, contentDescription = stringResource(R.string.manga_downloads))
                                 }
                             }
-                        }
-                        Box {
-                            IconButton(onClick = { showLayoutMenu = true }) {
-                                Icon(Icons.Rounded.GridView, contentDescription = stringResource(R.string.library_layout))
+                            IconButton(onClick = onMangaExtensions) {
+                                Icon(FolioIcons.Extension, contentDescription = stringResource(R.string.manga_extensions))
                             }
-                            DropdownMenu(expanded = showLayoutMenu, onDismissRequest = { showLayoutMenu = false }) {
-                                LibraryLayout.entries.forEach { layout ->
-                                    DropdownMenuItem(
-                                        text = { Text(layout.label()) },
-                                        trailingIcon = { if (settings.library.layout == layout) Text("✓") },
-                                        onClick = {
-                                            viewModel.setLayout(layout)
-                                            showLayoutMenu = false
-                                        },
-                                    )
+                            Box {
+                                IconButton(onClick = { showMangaSortMenu = true }) {
+                                    Icon(FolioIcons.Sort, contentDescription = stringResource(R.string.library_sort))
                                 }
-                                LibraryGrouping.entries.forEach { grouping ->
-                                    DropdownMenuItem(
-                                        text = { Text("${stringResource(R.string.library_group)}: ${grouping.label()}") },
-                                        trailingIcon = { if (settings.library.grouping == grouping) Text("✓") },
-                                        onClick = {
-                                            viewModel.setGrouping(grouping)
-                                            showLayoutMenu = false
-                                        },
-                                    )
+                                DropdownMenu(
+                                    expanded = showMangaSortMenu,
+                                    onDismissRequest = { showMangaSortMenu = false },
+                                ) {
+                                    MangaSort.entries.forEach { option ->
+                                        DropdownMenuItem(
+                                            text = { Text(stringResource(option.labelRes())) },
+                                            onClick = {
+                                                mangaViewModel.setSort(option)
+                                                showMangaSortMenu = false
+                                            },
+                                            trailingIcon = {
+                                                if (option == mangaSort) {
+                                                    Icon(FolioIcons.MenuBook, contentDescription = null)
+                                                }
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         }
                     },
                 )
             }
-            tabs?.invoke()
-            }
         },
         floatingActionButton = {
             if (!selectionMode) {
-                ExtendedFloatingActionButton(
-                    onClick = { openFiles.launch(arrayOf("*/*")) },
-                    icon = { Icon(Icons.Rounded.Add, contentDescription = null) },
-                    text = { Text(stringResource(R.string.action_import)) },
-                )
+                Box {
+                    ExtendedFloatingActionButton(
+                        onClick = { showFabMenu = true },
+                        icon = { Icon(FolioIcons.Add, contentDescription = null) },
+                        text = { Text(stringResource(R.string.action_import)) },
+                    )
+                    DropdownMenu(expanded = showFabMenu, onDismissRequest = { showFabMenu = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_import)) },
+                            onClick = {
+                                showFabMenu = false
+                                openFiles.launch(arrayOf("*/*"))
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.action_import_folder)) },
+                            leadingIcon = { Icon(FolioIcons.CreateNewFolder, contentDescription = null) },
+                            onClick = {
+                                showFabMenu = false
+                                openFolder.launch(null)
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.web_open_from_library)) },
+                            leadingIcon = { Icon(FolioIcons.Public, contentDescription = null) },
+                            onClick = {
+                                showFabMenu = false
+                                onFromWeb()
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.manga_find_online)) },
+                            leadingIcon = { Icon(FolioIcons.Explore, contentDescription = null) },
+                            onClick = {
+                                showFabMenu = false
+                                onBrowseManga()
+                            },
+                        )
+                    }
+                }
             }
         },
     ) { padding ->
@@ -214,83 +264,102 @@ fun LibraryScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            if (importProgress.running) {
-                Column(Modifier.padding(horizontal = spacing.screenPadding, vertical = 8.dp)) {
-                    Text(
-                        text = stringResource(
-                            R.string.import_progress,
-                            importProgress.completed + 1,
-                            importProgress.total,
-                        ),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    LinearProgressIndicator(
-                        progress = { importProgress.fraction },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-
-            SmartCollectionRow(
-                selected = filter.smart,
-                onSelect = viewModel::setSmart,
-                modifier = Modifier.padding(vertical = 4.dp),
-            )
-
-            if (filter.activeCount > 0) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = spacing.screenPadding),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = pluralStringResource(R.plurals.library_books_count, books.size, books.size),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.width(12.dp))
-                    TextButton(onClick = viewModel::clearFilters) {
-                        Text(stringResource(R.string.filter_clear))
+            if (!selectionMode) {
+                TabRow(selectedTabIndex = tab) {
+                    listOf(R.string.library_tab_books, R.string.library_tab_manga).forEachIndexed { index, label ->
+                        Tab(selected = tab == index, onClick = { tab = index }, text = { Text(stringResource(label)) })
                     }
                 }
             }
 
-            when {
-                books.isEmpty() && filter.isActive -> EmptyState(
-                    title = stringResource(R.string.empty_filter),
-                    actionLabel = stringResource(R.string.filter_clear),
-                    onAction = viewModel::clearFilters,
-                    modifier = Modifier.fillMaxSize(),
+            if (tab == 0) {
+                if (importProgress.running) {
+                    Column(Modifier.padding(horizontal = spacing.screenPadding, vertical = 8.dp)) {
+                        Text(
+                            text = stringResource(
+                                R.string.import_progress,
+                                importProgress.completed + 1,
+                                importProgress.total,
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        LinearProgressIndicator(
+                            progress = { importProgress.fraction },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+
+                SmartCollectionRow(
+                    selected = filter.smart,
+                    onSelect = viewModel::setSmart,
+                    modifier = Modifier.padding(vertical = 4.dp),
                 )
 
-                books.isEmpty() -> EmptyState(
-                    title = stringResource(R.string.empty_library_title),
-                    message = stringResource(R.string.empty_library_message),
-                    icon = Icons.Rounded.Book,
-                    actionLabel = stringResource(R.string.action_import),
-                    onAction = { openFiles.launch(arrayOf("*/*")) },
-                    modifier = Modifier.fillMaxSize(),
-                )
+                if (filter.activeCount > 0) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = spacing.screenPadding),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = pluralStringResource(R.plurals.library_books_count, books.size, books.size),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        TextButton(onClick = viewModel::clearFilters) {
+                            Text(stringResource(R.string.filter_clear))
+                        }
+                    }
+                }
 
-                else -> LibraryContent(
-                    grouped = grouped,
-                    settings = settings.library,
-                    selection = selection,
-                    selectionMode = selectionMode,
-                    contentPadding = PaddingValues(
-                        start = spacing.screenPadding,
-                        end = spacing.screenPadding,
-                        bottom = 96.dp,
-                    ),
-                    onClick = { book ->
-                        if (selectionMode) viewModel.toggleSelected(book.id) else onOpenBook(book.id)
-                    },
-                    onLongClick = { book ->
-                        if (selectionMode) viewModel.toggleSelected(book.id) else actionTarget = book
-                    },
+                when {
+                    books.isEmpty() && filter.isActive -> EmptyState(
+                        title = stringResource(R.string.empty_filter),
+                        actionLabel = stringResource(R.string.filter_clear),
+                        onAction = viewModel::clearFilters,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+
+                    books.isEmpty() -> EmptyState(
+                        title = stringResource(R.string.empty_library_title),
+                        message = stringResource(R.string.empty_library_message),
+                        icon = FolioIcons.Book,
+                        actionLabel = stringResource(R.string.action_import),
+                        onAction = { openFiles.launch(arrayOf("*/*")) },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+
+                    else -> LibraryContent(
+                        grouped = grouped,
+                        settings = settings.library,
+                        selection = selection,
+                        selectionMode = selectionMode,
+                        contentPadding = PaddingValues(
+                            start = spacing.screenPadding,
+                            end = spacing.screenPadding,
+                            bottom = 96.dp,
+                        ),
+                        onClick = { book ->
+                            if (selectionMode) viewModel.toggleSelected(book.id) else onOpenBook(book.id)
+                        },
+                        onLongClick = { book ->
+                            if (selectionMode) viewModel.toggleSelected(book.id) else actionTarget = book
+                        },
+                    )
+                }
+            } else {
+                MangaLibraryTabContent(
+                    onOpenManga = onOpenManga,
+                    onBrowse = onBrowseManga,
+                    onEnableSources = onEnableMangaSources,
+                    onOpenSourceWebView = onOpenSourceWebView,
+                    modifier = Modifier.fillMaxSize(),
+                    viewModel = mangaViewModel,
                 )
             }
         }
@@ -304,6 +373,13 @@ fun LibraryScreen(
                 showFilters = false
                 onCollections()
             },
+        )
+    }
+
+    if (showDisplayOptions) {
+        DisplayOptionsSheet(
+            viewModel = viewModel,
+            onDismiss = { showDisplayOptions = false },
         )
     }
 

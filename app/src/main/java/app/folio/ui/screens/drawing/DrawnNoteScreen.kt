@@ -9,10 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.MenuBook
-import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,6 +34,7 @@ import app.folio.R
 import app.folio.reader.common.InkLayer
 import app.folio.ui.components.ConfirmDialog
 import app.folio.ui.folioViewModel
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.screens.reader.ScribbleToolbar
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,17 +79,17 @@ fun DrawnNoteScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+                        Icon(FolioIcons.ArrowBack, contentDescription = stringResource(R.string.action_back))
                     }
                 },
                 actions = {
                     note?.let { current ->
                         IconButton(onClick = { onOpenInBook(current.bookId, current.location) }) {
-                            Icon(Icons.AutoMirrored.Rounded.MenuBook, contentDescription = stringResource(R.string.drawing_open_in_book))
+                            Icon(FolioIcons.MenuBook, contentDescription = stringResource(R.string.drawing_open_in_book))
                         }
                     }
                     IconButton(onClick = { confirmDelete = true }) {
-                        Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.action_delete))
+                        Icon(FolioIcons.Delete, contentDescription = stringResource(R.string.action_delete))
                     }
                 },
             )

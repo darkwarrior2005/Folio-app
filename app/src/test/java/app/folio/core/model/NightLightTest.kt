@@ -1,7 +1,5 @@
 package app.folio.core.model
 
-import app.folio.data.settings.NightLightMode
-import app.folio.data.settings.NightLightSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -9,68 +7,46 @@ import org.junit.Test
 
 class NightLightTest {
 
+    private fun at(h: Int, m: Int = 0) = h * 60 + m
+
     @Test
-    fun offModeIsNeverActive() {
-        val settings = NightLightSettings(mode = NightLightMode.OFF)
-        assertFalse(NightLight.isActive(settings, nowMinutes = 23 * 60))
+    fun `off and always ignore the clock`() {
+        assertFalse(NightLight.isActive(NightLightMode.OFF, at(23), at(21), at(7)))
+        assertTrue(NightLight.isActive(NightLightMode.ALWAYS, at(12), at(21), at(7)))
     }
 
     @Test
-    fun alwaysModeIsAlwaysActive() {
-        val settings = NightLightSettings(mode = NightLightMode.ALWAYS)
-        assertTrue(NightLight.isActive(settings, nowMinutes = 12 * 60))
+    fun `a schedule across midnight covers the night`() {
+        val on = { h: Int, m: Int -> NightLight.isActive(NightLightMode.SCHEDULED, at(h, m), at(21), at(7)) }
+        assertTrue(on(21, 0))
+        assertTrue(on(23, 59))
+        assertTrue(on(0, 0))
+        assertTrue(on(6, 59))
+        assertFalse(on(7, 0))
+        assertFalse(on(20, 59))
     }
 
     @Test
-    fun scheduleCrossingMidnightIsActiveOnBothSides() {
-        val settings = NightLightSettings(mode = NightLightMode.SCHEDULED, startMinutes = 21 * 60, endMinutes = 7 * 60)
-        assertTrue(NightLight.isActive(settings, nowMinutes = 23 * 60)) // 11pm
-        assertTrue(NightLight.isActive(settings, nowMinutes = 1 * 60)) // 1am
-        assertTrue(NightLight.isActive(settings, nowMinutes = 6 * 60 + 59))
-        assertFalse(NightLight.isActive(settings, nowMinutes = 7 * 60)) // exactly end, exclusive
-        assertFalse(NightLight.isActive(settings, nowMinutes = 12 * 60)) // noon
+    fun `a daytime schedule and an all-day one`() {
+        assertTrue(NightLight.isActive(NightLightMode.SCHEDULED, at(14), at(13), at(15)))
+        assertFalse(NightLight.isActive(NightLightMode.SCHEDULED, at(16), at(13), at(15)))
+        assertTrue(NightLight.isActive(NightLightMode.SCHEDULED, at(3), at(22), at(22)))
     }
 
     @Test
-    fun scheduleWithinTheSameDay() {
-        val settings = NightLightSettings(mode = NightLightMode.SCHEDULED, startMinutes = 9 * 60, endMinutes = 17 * 60)
-        assertTrue(NightLight.isActive(settings, nowMinutes = 12 * 60))
-        assertFalse(NightLight.isActive(settings, nowMinutes = 8 * 60))
-        assertFalse(NightLight.isActive(settings, nowMinutes = 18 * 60))
+    fun `strengths stay short of opaque and clocks read like clocks`() {
+        assertEquals(0f, NightLight.tintAlpha(0f), 0f)
+        assertTrue(NightLight.tintAlpha(1f) < 0.5f)
+        assertTrue(NightLight.dimAlpha(5f) <= 0.6f)
+        assertEquals("21:00", NightLight.clock(at(21)))
+        assertEquals("07:05", NightLight.clock(at(7, 5)))
     }
 
     @Test
-    fun tintAndDimAreZeroWhenInactive() {
-        val settings = NightLightSettings(mode = NightLightMode.OFF, warmth = 0.7f, dim = 0.3f)
-        assertEquals(0f, NightLight.tintAlpha(settings, 23 * 60), 0f)
-        assertEquals(0f, NightLight.dimAlpha(settings, 23 * 60), 0f)
-    }
-
-    @Test
-    fun tintAndDimMatchSettingsWhenActive() {
-        val settings = NightLightSettings(mode = NightLightMode.ALWAYS, warmth = 0.7f, dim = 0.3f)
-        assertEquals(0.7f, NightLight.tintAlpha(settings, 23 * 60), 0f)
-        assertEquals(0.3f, NightLight.dimAlpha(settings, 23 * 60), 0f)
-    }
-
-    @Test
-    fun bedtimeNotDueWhenReminderIsOff() {
-        val settings = NightLightSettings(bedtimeReminder = false, bedtimeMinutes = 23 * 60)
-        assertFalse(NightLight.bedtimeDue(settings, 23 * 60 + 30))
-    }
-
-    @Test
-    fun bedtimeDueWithinWindow() {
-        val settings = NightLightSettings(bedtimeReminder = true, bedtimeMinutes = 23 * 60)
-        assertTrue(NightLight.bedtimeDue(settings, nowMinutes = 23 * 60)) // right at bedtime
-        assertTrue(NightLight.bedtimeDue(settings, nowMinutes = 23 * 60 + 179))
-        assertFalse(NightLight.bedtimeDue(settings, nowMinutes = 23 * 60 + 180)) // window is exclusive
-    }
-
-    @Test
-    fun bedtimeWindowWrapsPastMidnight() {
-        val settings = NightLightSettings(bedtimeReminder = true, bedtimeMinutes = 23 * 60)
-        assertTrue(NightLight.bedtimeDue(settings, nowMinutes = 60)) // 1am, 2 hours after 11pm
-        assertFalse(NightLight.bedtimeDue(settings, nowMinutes = 22 * 60)) // before bedtime
+    fun `the bedtime nudge is due for three hours from bedtime, across midnight`() {
+        assertTrue(NightLight.bedtimeDue(at(23), at(23)))
+        assertTrue(NightLight.bedtimeDue(at(1, 30), at(23)))
+        assertFalse(NightLight.bedtimeDue(at(2), at(23)))
+        assertFalse(NightLight.bedtimeDue(at(22, 59), at(23)))
     }
 }

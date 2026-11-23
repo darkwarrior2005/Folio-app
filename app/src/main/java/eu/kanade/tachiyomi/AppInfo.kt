@@ -1,33 +1,31 @@
 package eu.kanade.tachiyomi
 
-import android.content.Context
-import android.content.pm.PackageManager
+import android.os.Build
+import app.folio.BuildConfig
 
 /**
- * A handful of extensions (MangaDex among them) probe this at runtime and crash if it is absent.
- * Mirrors the shape Tachiyomi/Mihon ships so those extensions' version checks succeed.
+ * Facts about the app, for extensions (MangaDex sends the version in its User-Agent, for one).
+ * Part of the extensions-lib API, so the name, package and signatures must stay as they are.
+ *
+ * Adapted from Mihon (Apache-2.0).
  */
+@Suppress("UNUSED")
 object AppInfo {
 
-    @JvmStatic
-    fun getVersionName(): String = versionName
+    /** @since extension-lib 1.3 */
+    fun getVersionCode(): Int = BuildConfig.VERSION_CODE
 
-    @JvmStatic
-    fun getVersionCode(): Long = versionCode
+    /** @since extension-lib 1.3 */
+    fun getVersionName(): String = BuildConfig.VERSION_NAME
 
-    private var versionName: String = "0.0.0"
-    private var versionCode: Long = 0
-
-    fun init(context: Context) {
-        val packageInfo = try {
-            context.packageManager.getPackageInfo(context.packageName, 0)
-        } catch (_: PackageManager.NameNotFoundException) {
-            null
-        }
-        versionName = packageInfo?.versionName ?: versionName
-        versionCode = packageInfo?.let {
-            @Suppress("DEPRECATION")
-            it.longVersionCode
-        } ?: versionCode
+    /**
+     * The image types the reader can decode, so a source can ask the site for one of them.
+     *
+     * @since extension-lib 1.5
+     */
+    fun getSupportedImageMimeTypes(): List<String> = buildList {
+        addAll(listOf("image/jpeg", "image/png", "image/webp", "image/gif"))
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) add("image/heif")
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) add("image/avif")
     }
 }

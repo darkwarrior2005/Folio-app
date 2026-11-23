@@ -16,10 +16,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -35,6 +31,7 @@ import app.folio.R
 import app.folio.core.model.LibraryBook
 import app.folio.core.model.ReadingStatus
 import app.folio.data.settings.LibrarySettings
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.util.Format
 
 private const val COVER_RATIO = 0.66f
@@ -113,13 +110,13 @@ private fun CoverBadges(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (book.missing) {
-            BadgeIcon(Icons.Rounded.WarningAmber, MaterialTheme.colorScheme.error)
+            BadgeIcon(FolioIcons.WarningAmber, MaterialTheme.colorScheme.error)
         }
         if (book.favorite) {
-            BadgeIcon(Icons.Rounded.Star, MaterialTheme.colorScheme.primary)
+            BadgeIcon(FolioIcons.Star, MaterialTheme.colorScheme.primary)
         }
         if (book.status == ReadingStatus.FINISHED) {
-            BadgeIcon(Icons.Rounded.CheckCircle, MaterialTheme.colorScheme.primary)
+            BadgeIcon(FolioIcons.CheckCircle, MaterialTheme.colorScheme.primary)
         }
         if (settings.showFileType) {
             Box(
@@ -137,7 +134,7 @@ private fun CoverBadges(
         }
         if (selectionMode) {
             Icon(
-                imageVector = Icons.Rounded.CheckCircle,
+                imageVector = FolioIcons.CheckCircle,
                 contentDescription = null,
                 tint = if (selected) MaterialTheme.colorScheme.primary else Color.White.copy(alpha = 0.8f),
                 modifier = Modifier
@@ -264,7 +261,7 @@ fun BookListRow(
         Column(horizontalAlignment = Alignment.End) {
             if (book.missing) {
                 Icon(
-                    Icons.Rounded.WarningAmber,
+                    FolioIcons.WarningAmber,
                     contentDescription = androidx.compose.ui.res.stringResource(R.string.missing_file_badge),
                     tint = MaterialTheme.colorScheme.error,
                     modifier = Modifier.size(18.dp),
@@ -272,7 +269,7 @@ fun BookListRow(
             }
             if (book.favorite) {
                 Icon(
-                    Icons.Rounded.Star,
+                    FolioIcons.Star,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(18.dp),
@@ -280,7 +277,7 @@ fun BookListRow(
             }
             if (selectionMode) {
                 Icon(
-                    Icons.Rounded.CheckCircle,
+                    FolioIcons.CheckCircle,
                     contentDescription = null,
                     tint = if (selected) {
                         MaterialTheme.colorScheme.primary

@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -26,25 +25,19 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -63,15 +56,24 @@ import app.folio.BuildConfig
 import app.folio.R
 import app.folio.core.model.BookSort
 import app.folio.core.model.LibraryLayout
+import app.folio.core.model.NightLight
+import app.folio.core.model.NightLightMode
 import app.folio.data.settings.ComicDirection
+import app.folio.data.settings.HomeSection
 import app.folio.data.settings.ImportMode
 import app.folio.data.settings.OrientationLock
 import app.folio.data.settings.PdfViewMode
 import app.folio.data.settings.TapZoneStyle
 import app.folio.data.settings.UiDensity
 import app.folio.ui.components.ConfirmDialog
+import app.folio.ui.components.FolioChip
+import app.folio.ui.components.NavigationRow
 import app.folio.ui.components.SectionHeader
+import app.folio.ui.components.SettingsScaffold
+import app.folio.ui.components.SliderRow
+import app.folio.ui.components.SwitchRow
 import app.folio.ui.folioViewModel
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.screens.library.label
 import app.folio.ui.screens.reader.label
 import app.folio.ui.theme.AccentColor
@@ -110,51 +112,49 @@ fun SettingsScreen(
             }
             Spacer(Modifier.height(12.dp))
 
+            SectionHeader(stringResource(R.string.settings_appearance))
             NavigationRow(
                 stringResource(R.string.settings_theme),
                 FolioThemes.byId(settings.appearance.themeId).name(),
             ) { onNavigate(app.folio.ui.nav.Routes.THEMES) }
+            NavigationRow(
+                stringResource(R.string.settings_night_light),
+                nightLightSummary(settings.nightLight),
+            ) { onNavigate(app.folio.ui.nav.Routes.NIGHT_LIGHT) }
+            NavigationRow(stringResource(R.string.settings_accessibility), null) {
+                onNavigate(app.folio.ui.nav.Routes.ACCESSIBILITY)
+            }
+
+            SectionHeader(stringResource(R.string.settings_section_reading))
             NavigationRow(stringResource(R.string.settings_reader), null) {
                 onNavigate(app.folio.ui.nav.Routes.READER_SETTINGS)
-            }
-            NavigationRow(stringResource(R.string.settings_night_light), null) {
-                onNavigate(app.folio.ui.nav.Routes.NIGHT_LIGHT)
             }
             NavigationRow(stringResource(R.string.settings_library), null) {
                 onNavigate(app.folio.ui.nav.Routes.LIBRARY_SETTINGS)
             }
+
+            SectionHeader(stringResource(R.string.settings_section_focus))
             NavigationRow(stringResource(R.string.settings_pomodoro), null) {
                 onNavigate(app.folio.ui.nav.Routes.POMODORO_SETTINGS)
-            }
-            NavigationRow(stringResource(R.string.settings_manga), null) {
-                onNavigate(app.folio.ui.nav.Routes.MANGA_SETTINGS)
-            }
-            NavigationRow(stringResource(R.string.manga_extensions), null) {
-                onNavigate(app.folio.ui.nav.Routes.mangaExtensions(0))
-            }
-            NavigationRow(stringResource(R.string.manga_find_online), null) {
-                onNavigate(app.folio.ui.nav.Routes.MANGA_BROWSE)
-            }
-            NavigationRow(stringResource(R.string.manga_downloads), null) {
-                onNavigate(app.folio.ui.nav.Routes.MANGA_DOWNLOADS)
-            }
-            NavigationRow(stringResource(R.string.web_from_the_web), null) {
-                onNavigate(app.folio.ui.nav.Routes.web())
             }
             NavigationRow(stringResource(R.string.settings_notifications), null) {
                 onNavigate(app.folio.ui.nav.Routes.NOTIFICATIONS)
             }
+
+            SectionHeader(stringResource(R.string.settings_section_content_data))
+            NavigationRow(stringResource(R.string.settings_manga), null) {
+                onNavigate(app.folio.ui.nav.Routes.MANGA_SETTINGS)
+            }
             NavigationRow(stringResource(R.string.settings_storage), null) {
                 onNavigate(app.folio.ui.nav.Routes.STORAGE)
             }
-            NavigationRow(stringResource(R.string.settings_privacy), null) {
-                onNavigate(app.folio.ui.nav.Routes.PRIVACY)
-            }
-            NavigationRow(stringResource(R.string.settings_accessibility), null) {
-                onNavigate(app.folio.ui.nav.Routes.ACCESSIBILITY)
-            }
             NavigationRow(stringResource(R.string.settings_data), null) {
                 onNavigate(app.folio.ui.nav.Routes.BACKUP)
+            }
+
+            SectionHeader(stringResource(R.string.settings_section_other))
+            NavigationRow(stringResource(R.string.settings_privacy), null) {
+                onNavigate(app.folio.ui.nav.Routes.PRIVACY)
             }
             NavigationRow(stringResource(R.string.settings_about), null) {
                 onNavigate(app.folio.ui.nav.Routes.ABOUT)
@@ -307,7 +307,7 @@ private fun ThemePreview(theme: FolioTheme, selected: Boolean, onClick: () -> Un
             if (selected) {
                 Spacer(Modifier.width(6.dp))
                 Icon(
-                    Icons.Rounded.Check,
+                    FolioIcons.Check,
                     contentDescription = null,
                     tint = theme.accent,
                     modifier = Modifier.size(14.dp),
@@ -401,6 +401,7 @@ fun ReaderDefaultsScreen(
             }
         }
 
+        SectionHeader(stringResource(R.string.settings_section_behavior))
         SwitchRow(stringResource(R.string.setting_keep_screen_on), settings.behavior.keepScreenOn) { checked ->
             viewModel.update { it.copy(behavior = it.behavior.copy(keepScreenOn = checked)) }
         }
@@ -422,6 +423,8 @@ fun ReaderDefaultsScreen(
         SwitchRow(stringResource(R.string.setting_page_turn_haptic), settings.behavior.pageTurnHaptic) { checked ->
             viewModel.update { it.copy(behavior = it.behavior.copy(pageTurnHaptic = checked)) }
         }
+
+        SectionHeader(stringResource(R.string.settings_section_zoom))
         SwitchRow(stringResource(R.string.setting_zoom_lock_button), settings.behavior.zoomLockButton) { checked ->
             viewModel.update { it.copy(behavior = it.behavior.copy(zoomLockButton = checked)) }
         }
@@ -431,7 +434,6 @@ fun ReaderDefaultsScreen(
         ) { checked ->
             viewModel.update { it.copy(behavior = it.behavior.copy(zoomLockAlwaysVisible = checked)) }
         }
-
         SliderRow(
             label = stringResource(R.string.setting_auto_hide),
             value = settings.behavior.autoHideControlsMs / 1000f,
@@ -471,6 +473,29 @@ fun LibrarySettingsScreen(
                         )
                     },
                 )
+            }
+        }
+
+        if (settings.home.style == app.folio.data.settings.HomeStyle.CLASSIC) {
+            SectionHeader(stringResource(R.string.settings_home_sections))
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                HomeSection.entries.forEach { section ->
+                    val enabled = section in settings.home.sections
+                    FolioChip(
+                        label = section.label(),
+                        selected = enabled,
+                        onClick = {
+                            viewModel.update {
+                                val sections = if (enabled) {
+                                    it.home.sections - section
+                                } else {
+                                    it.home.sections + section
+                                }
+                                it.copy(home = it.home.copy(sections = sections))
+                            }
+                        },
+                    )
+                }
             }
         }
 
@@ -625,14 +650,13 @@ fun StorageScreen(
     val context = LocalContext.current
 
     SettingsScaffold(stringResource(R.string.settings_storage), onBack) {
+        SectionHeader(stringResource(R.string.settings_section_storage_usage))
         StorageRow(stringResource(R.string.library_title), Format.fileSize(librarySize))
         StorageRow(stringResource(R.string.action_change_cover), Format.fileSize(storage.covers))
         StorageRow(stringResource(R.string.reader_thumbnails), Format.fileSize(storage.renderedPages))
         StorageRow(stringResource(R.string.settings_full_text), "$indexed books")
         StorageRow(stringResource(R.string.import_skipped), Format.fileSize(storage.temporary))
         StorageRow(stringResource(R.string.settings_import_copy), Format.fileSize(storage.importedFiles))
-
-        HorizontalDivider(Modifier.padding(vertical = 12.dp))
 
         SectionHeader(stringResource(R.string.settings_import_mode))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -655,11 +679,11 @@ fun StorageScreen(
             }
         }
 
+        SectionHeader(stringResource(R.string.settings_section_indexing))
         SwitchRow(stringResource(R.string.settings_full_text), settings.storage.fullTextIndexing) { checked ->
             viewModel.update { it.copy(storage = it.storage.copy(fullTextIndexing = checked)) }
             if (checked) viewModel.reindex(context) else viewModel.clearTextIndex()
         }
-
         SliderRow(
             label = stringResource(R.string.settings_trash_days, settings.storage.trashRetentionDays),
             value = settings.storage.trashRetentionDays.toFloat(),
@@ -668,9 +692,134 @@ fun StorageScreen(
         ) { value ->
             viewModel.update { it.copy(storage = it.storage.copy(trashRetentionDays = value.toInt())) }
         }
-
         TextButton(onClick = viewModel::clearCache) { Text(stringResource(R.string.settings_clear_cache)) }
         TextButton(onClick = { viewModel.reindex(context) }) { Text(stringResource(R.string.search_indexing)) }
+    }
+}
+
+@Composable
+private fun nightLightSummary(night: app.folio.data.settings.NightLightSettings): String = when (night.mode) {
+    NightLightMode.OFF -> stringResource(R.string.night_light_off)
+    NightLightMode.ALWAYS -> stringResource(R.string.night_light_always)
+    NightLightMode.SCHEDULED -> stringResource(
+        R.string.night_light_schedule_summary,
+        NightLight.clock(night.startMinutes),
+        NightLight.clock(night.endMinutes),
+    )
+}
+
+/**
+ * The warm night filter: an amber tint over all of Folio in the evening, so reading late does not
+ * keep you up, with optional extra dimming for a dark bedroom.
+ */
+@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@Composable
+fun NightLightScreen(
+    onBack: () -> Unit,
+    viewModel: SettingsViewModel = folioViewModel { SettingsViewModel(it) },
+) {
+    val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val night = settings.nightLight
+    // Which time is being picked: 0 night light start, 1 its end, 2 bedtime.
+    var editing by remember { mutableStateOf<Int?>(null) }
+
+    fun update(transform: (app.folio.data.settings.NightLightSettings) -> app.folio.data.settings.NightLightSettings) =
+        viewModel.update { it.copy(nightLight = transform(it.nightLight)) }
+
+    SettingsScaffold(stringResource(R.string.settings_night_light), onBack) {
+        Text(
+            text = stringResource(R.string.night_light_intro),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(12.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                NightLightMode.OFF to R.string.night_light_off,
+                NightLightMode.ALWAYS to R.string.night_light_always,
+                NightLightMode.SCHEDULED to R.string.night_light_scheduled,
+            ).forEach { (mode, label) ->
+                FolioChip(stringResource(label), night.mode == mode, onClick = { update { it.copy(mode = mode) } })
+            }
+        }
+
+        if (night.mode == NightLightMode.SCHEDULED) {
+            SectionHeader(stringResource(R.string.night_light_schedule))
+            NavigationRow(stringResource(R.string.night_light_start), NightLight.clock(night.startMinutes)) { editing = 0 }
+            NavigationRow(stringResource(R.string.night_light_end), NightLight.clock(night.endMinutes)) { editing = 1 }
+        }
+
+        SectionHeader(stringResource(R.string.night_light_strength))
+        SliderRow(
+            label = stringResource(R.string.night_light_warmth),
+            value = night.warmth,
+            range = 0f..1f,
+            display = "${(night.warmth * 100).toInt()}%",
+        ) { value -> update { it.copy(warmth = value) } }
+        SliderRow(
+            label = stringResource(R.string.night_light_dim),
+            value = night.dim,
+            range = 0f..1f,
+            display = "${(night.dim * 100).toInt()}%",
+        ) { value -> update { it.copy(dim = value) } }
+        Text(
+            text = stringResource(R.string.night_light_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+
+        SectionHeader(stringResource(R.string.bedtime_section))
+        SwitchRow(stringResource(R.string.bedtime_reminder), night.bedtimeReminder) { on ->
+            update { it.copy(bedtimeReminder = on) }
+        }
+        if (night.bedtimeReminder) {
+            NavigationRow(stringResource(R.string.bedtime_time), NightLight.clock(night.bedtimeMinutes)) { editing = 2 }
+        }
+        Text(
+            text = stringResource(R.string.bedtime_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+
+    editing?.let { which ->
+        val minutes = when (which) {
+            0 -> night.startMinutes
+            1 -> night.endMinutes
+            else -> night.bedtimeMinutes
+        }
+        val state = rememberTimePickerState(initialHour = minutes / 60, initialMinute = minutes % 60)
+        AlertDialog(
+            onDismissRequest = { editing = null },
+            title = {
+                Text(
+                    stringResource(
+                        when (which) {
+                            0 -> R.string.night_light_start
+                            1 -> R.string.night_light_end
+                            else -> R.string.bedtime_time
+                        },
+                    ),
+                )
+            },
+            text = { TimePicker(state = state) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val picked = state.hour * 60 + state.minute
+                    update {
+                        when (which) {
+                            0 -> it.copy(startMinutes = picked)
+                            1 -> it.copy(endMinutes = picked)
+                            else -> it.copy(bedtimeMinutes = picked)
+                        }
+                    }
+                    editing = null
+                }) { Text(stringResource(R.string.action_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { editing = null }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
     }
 }
 
@@ -712,6 +861,8 @@ fun PrivacyScreen(
     val privacy = settings.privacy
     var pinEntry by remember { mutableStateOf<String?>(null) }
     var confirmEntry by remember { mutableStateOf<String?>(null) }
+    var confirmClear by remember { mutableStateOf(false) }
+    var cleared by remember { mutableStateOf(false) }
 
     SettingsScaffold(stringResource(R.string.settings_privacy), onBack) {
         SwitchRow(stringResource(R.string.settings_pin_lock), privacy.lockEnabled) { checked ->
@@ -734,28 +885,64 @@ fun PrivacyScreen(
             viewModel.update { it.copy(privacy = it.privacy.copy(hideInRecents = checked)) }
         }
 
-        Spacer(Modifier.height(16.dp))
-        Text(stringResource(R.string.settings_browsing), style = MaterialTheme.typography.titleSmall)
+        SectionHeader(stringResource(R.string.settings_section_browsing))
+        Text(
+            text = stringResource(R.string.settings_browsing_note),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         SwitchRow(stringResource(R.string.settings_incognito_keyboard), privacy.incognitoKeyboard) { checked ->
             viewModel.update { it.copy(privacy = it.privacy.copy(incognitoKeyboard = checked)) }
         }
         SwitchRow(stringResource(R.string.settings_forget_browsing), privacy.forgetBrowsing) { checked ->
             viewModel.update { it.copy(privacy = it.privacy.copy(forgetBrowsing = checked)) }
         }
-        var clearing by remember { mutableStateOf(false) }
-        var signOutToo by remember { mutableStateOf(false) }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            androidx.compose.material3.Checkbox(checked = signOutToo, onCheckedChange = { signOutToo = it })
-            Text(stringResource(R.string.settings_sign_out_sites))
+        TextButton(onClick = { confirmClear = true }) {
+            Text(stringResource(R.string.settings_clear_browsing))
         }
-        TextButton(onClick = { clearing = true }) { Text(stringResource(R.string.settings_clear_browsing_now)) }
-        if (clearing) {
-            val container = app.folio.ui.LocalContainer.current
-            androidx.compose.runtime.LaunchedEffect(Unit) {
-                app.folio.data.privacy.BrowsingData(container.appContext, container).forget(signOutToo)
-                clearing = false
-            }
+        if (cleared) {
+            Text(
+                text = stringResource(R.string.settings_browsing_cleared),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
+    }
+
+    if (confirmClear) {
+        var includeSiteData by remember { mutableStateOf(false) }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            title = { Text(stringResource(R.string.settings_clear_browsing)) },
+            text = {
+                Column {
+                    Text(stringResource(R.string.settings_clear_browsing_message))
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(top = 12.dp)
+                            .clickable { includeSiteData = !includeSiteData },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        androidx.compose.material3.Checkbox(checked = includeSiteData, onCheckedChange = null)
+                        Text(
+                            text = stringResource(R.string.settings_clear_site_data),
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmClear = false
+                    viewModel.clearBrowsingData(includeSiteData) { cleared = true }
+                }) { Text(stringResource(R.string.settings_clear)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClear = false }) { Text(stringResource(R.string.action_cancel)) }
+            },
+        )
     }
 
     pinEntry?.let { value ->
@@ -787,79 +974,6 @@ fun PrivacyScreen(
 }
 
 @Composable
-fun NightLightScreen(
-    onBack: () -> Unit,
-    viewModel: SettingsViewModel = folioViewModel { SettingsViewModel(it) },
-) {
-    val settings by viewModel.settings.collectAsStateWithLifecycle()
-    val nightLight = settings.nightLight
-
-    fun update(transform: (app.folio.data.settings.NightLightSettings) -> app.folio.data.settings.NightLightSettings) {
-        viewModel.update { it.copy(nightLight = transform(it.nightLight)) }
-    }
-
-    SettingsScaffold("Night light", onBack) {
-        app.folio.data.settings.NightLightMode.entries.forEach { mode ->
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                androidx.compose.material3.RadioButton(
-                    selected = nightLight.mode == mode,
-                    onClick = { update { it.copy(mode = mode) } },
-                )
-                Text(mode.name.lowercase().replaceFirstChar(Char::uppercase))
-            }
-        }
-        if (nightLight.mode != app.folio.data.settings.NightLightMode.OFF) {
-            SliderRow(
-                label = "Warmth",
-                value = nightLight.warmth,
-                range = 0f..1f,
-                display = "${(nightLight.warmth * 100).toInt()}%",
-            ) { v -> update { s -> s.copy(warmth = v) } }
-            SliderRow(
-                label = "Dim",
-                value = nightLight.dim,
-                range = 0f..1f,
-                display = "${(nightLight.dim * 100).toInt()}%",
-            ) { v -> update { s -> s.copy(dim = v) } }
-        }
-        if (nightLight.mode == app.folio.data.settings.NightLightMode.SCHEDULED) {
-            MinutesOfDayRow("Start", nightLight.startMinutes) { update { s -> s.copy(startMinutes = it) } }
-            MinutesOfDayRow("End", nightLight.endMinutes) { update { s -> s.copy(endMinutes = it) } }
-        }
-        Spacer(Modifier.height(16.dp))
-        Text("Bedtime", style = MaterialTheme.typography.titleSmall)
-        SwitchRow("Remind me at bedtime", nightLight.bedtimeReminder) { checked ->
-            update { it.copy(bedtimeReminder = checked) }
-        }
-        if (nightLight.bedtimeReminder) {
-            MinutesOfDayRow("Bedtime", nightLight.bedtimeMinutes) { update { s -> s.copy(bedtimeMinutes = it) } }
-        }
-    }
-}
-
-@Composable
-private fun MinutesOfDayRow(label: String, minutes: Int, onChange: (Int) -> Unit) {
-    val hour = minutes / 60
-    val minute = minutes % 60
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(label)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = { onChange(((minutes - 15) + 1440) % 1440) }) {
-                Icon(Icons.Rounded.Remove, contentDescription = "Earlier")
-            }
-            Text("%02d:%02d".format(hour, minute))
-            IconButton(onClick = { onChange((minutes + 15) % 1440) }) {
-                Icon(Icons.Rounded.Add, contentDescription = "Later")
-            }
-        }
-    }
-}
-
-@Composable
 fun AboutScreen(onBack: () -> Unit) {
     SettingsScaffold(stringResource(R.string.settings_about), onBack) {
         Text(
@@ -886,94 +1000,8 @@ private const val LICENSES =
         "Atkinson Hyperlegible and JetBrains Mono (SIL Open Font License 1.1)"
 
 // ---- Shared pieces -------------------------------------------------------------
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun SettingsScaffold(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
-    val spacing = LocalSpacing.current
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text(title) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = stringResource(R.string.action_back),
-                        )
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = spacing.screenPadding)
-                .padding(bottom = 64.dp),
-        ) {
-            content()
-        }
-    }
-}
-
-@Composable
-fun NavigationRow(title: String, subtitle: String?, onClick: () -> Unit) {
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(onClick = onClick)
-            .padding(vertical = 14.dp, horizontal = 6.dp),
-    ) {
-        Text(text = title, style = MaterialTheme.typography.bodyLarge)
-        subtitle?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
-fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clickable { onChange(!checked) }
-            .padding(vertical = 12.dp, horizontal = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-        Switch(checked = checked, onCheckedChange = onChange)
-    }
-}
-
-@Composable
-fun SliderRow(
-    label: String,
-    value: Float,
-    range: ClosedFloatingPointRange<Float>,
-    display: String,
-    onChange: (Float) -> Unit,
-) {
-    Column(Modifier.padding(vertical = 8.dp, horizontal = 6.dp)) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(label, style = MaterialTheme.typography.bodyMedium)
-            Text(display, style = MaterialTheme.typography.labelMedium)
-        }
-        Slider(
-            value = value.coerceIn(range.start, range.endInclusive),
-            valueRange = range,
-            onValueChange = onChange,
-        )
-    }
-}
+// SettingsScaffold, NavigationRow, SwitchRow and SliderRow live in
+// app.folio.ui.components.Common now — they're used outside this package too.
 
 @Composable
 private fun StorageRow(label: String, value: String) {
@@ -998,5 +1026,19 @@ private fun ThemeGroup.label(): String = stringResource(
         ThemeGroup.DARK -> R.string.theme_group_dark
         ThemeGroup.READING -> R.string.theme_group_reading
         ThemeGroup.EXPERIMENTAL -> R.string.theme_group_experimental
+    },
+)
+
+@Composable
+private fun HomeSection.label(): String = stringResource(
+    when (this) {
+        HomeSection.CONTINUE_READING -> R.string.home_continue_reading
+        HomeSection.READING_GOAL -> R.string.home_goal
+        HomeSection.STREAK -> R.string.home_streak
+        HomeSection.RECENTLY_ADDED -> R.string.home_recently_added
+        HomeSection.COLLECTIONS -> R.string.home_collections
+        HomeSection.ACTIVITY -> R.string.home_activity
+        HomeSection.POMODORO -> R.string.home_pomodoro
+        HomeSection.QUEUE -> R.string.home_queue
     },
 )

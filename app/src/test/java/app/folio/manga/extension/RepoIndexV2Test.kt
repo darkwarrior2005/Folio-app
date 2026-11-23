@@ -1,88 +1,182 @@
 package app.folio.manga.extension
 
+import java.io.ByteArrayOutputStream
+import java.util.zip.GZIPOutputStream
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RepoIndexV2Test {
 
-    /** The real Keiyoushi index.pb header with three of its extensions, re-encoded and gzipped. */
-    private fun resource(name: String): ByteArray =
-        javaClass.classLoader!!.getResourceAsStream("repo/$name")!!.use { it.readBytes() }
+    /** Encodes protobuf wire format, the way a repository's index.pb is built. */
+    private class Proto {
+        private val out = ByteArrayOutputStream()
 
-    private fun sample(): ByteArray = resource("keiyoushi-sample.pb")
-
-    /** Whole index.pb files as downloaded from each repository (Nov 2026 snapshots). */
-    @Test
-    fun readsTheWholeKeiyoushiCatalogue() =
-        assertWholeCatalogue(resource("keiyoushi-full.pb"), "Keiyoushi", extensions = 1719, adult = 494, sources = 2796)
-
-    @Test
-    fun readsTheWholeFelipeGfaCatalogue() =
-        assertWholeCatalogue(resource("felipegfa-full.pb"), "FelipeGFA", extensions = 1383, adult = 372, sources = 2406)
-
-    private fun assertWholeCatalogue(bytes: ByteArray, name: String?, extensions: Int, adult: Int, sources: Int) {
-        val index = RepoIndexV2.decode(bytes)
-        if (name != null) assertEquals(name, index.name)
-        assertEquals(extensions, index.extensions.size)
-        assertEquals(adult, index.extensions.count { it.isNsfw })
-        assertEquals(sources, index.extensions.sumOf { it.sources.size })
-        index.extensions.forEach { ext ->
-            assertTrue(ext.pkg, ext.pkg.startsWith("eu.kanade.tachiyomi.extension."))
-            assertTrue(ext.pkg, ext.apkUrl.startsWith("https://") && ext.apkUrl.endsWith(".apk"))
-            assertTrue(ext.pkg, ext.name.isNotBlank() && ext.versionName.isNotBlank() && ext.versionCode > 0)
-            assertTrue(ext.pkg, ext.lang.isNotBlank())
+        fun varint(field: Int, value: Long) = apply {
+            tag(field, 0)
+            raw(value)
         }
-        assertEquals(extensions, index.extensions.distinctBy { it.pkg }.size)
+
+        fun string(field: Int, value: String) = bytes(field, value.toByteArray())
+
+        fun message(field: Int, build: Proto.() -> Unit) = bytes(field, Proto().apply(build).toByteArray())
+
+        fun fixed32(field: Int) = apply {
+            tag(field, 5)
+            out.write(ByteArray(4))
+        }
+
+        fun fixed64(field: Int) = apply {
+            tag(field, 1)
+            out.write(ByteArray(8))
+        }
+
+        fun toByteArray(): ByteArray = out.toByteArray()
+
+        private fun bytes(field: Int, value: ByteArray) = apply {
+            tag(field, 2)
+            raw(value.size.toLong())
+            out.write(value)
+        }
+
+        private fun tag(field: Int, wireType: Int) = raw(((field shl 3) or wireType).toLong())
+
+        private fun raw(value: Long) {
+            var rest = value
+            while (rest and 0x7FL.inv() != 0L) {
+                out.write(((rest and 0x7F) or 0x80).toInt())
+                rest = rest ushr 7
+            }
+            out.write(rest.toInt())
+        }
+    }
+
+    private fun index(): ByteArray = Proto().apply {
+        string(1, "Keiyoushi")
+        string(2, "KEI")
+        string(3, "9add655a")
+        message(4) {
+            string(1, "https://keiyoushi.github.io")
+            string(2, "https://discord.gg/x")
+        }
+        message(101) {
+            message(1) {
+                string(1, "Akuma")
+                string(2, "eu.kanade.tachiyomi.extension.all.akuma")
+                message(3) {
+                    string(1, "https://example.org/akuma.apk")
+                    string(2, "https://example.org/akuma.png")
+                    string(501, "https://example.org/akuma.jar")
+                }
+                string(4, "1.6")
+                varint(5, 106010)
+                string(6, "1.6.10")
+                varint(7, 3)
+                message(8) {
+                    varint(1, 1843646695111412994)
+                    string(2, "Akuma")
+                    string(3, "en")
+                    string(4, "https://akuma.moe")
+                    string(5, "https://mirror.akuma.moe")
+                }
+                message(8) {
+                    varint(1, -42)
+                    string(2, "Akuma")
+                    string(3, "fr")
+                    string(4, "https://akuma.moe")
+                }
+                // Fields a later index might add must be skipped, whatever their wire type.
+                fixed32(90)
+                fixed64(91)
+                varint(92, 7)
+            }
+            message(1) {
+                string(1, "Tachiyomi: Cubari")
+                string(2, "eu.kanade.tachiyomi.extension.en.cubari")
+                message(3) {
+                    string(1, "https://example.org/cubari.apk")
+                    string(2, "https://example.org/cubari.png")
+                }
+                string(4, "1.4")
+                varint(5, 14)
+                string(6, "1.4.14")
+                varint(7, 1)
+            }
+        }
+    }.toByteArray()
+
+    private fun gzip(bytes: ByteArray): ByteArray =
+        ByteArrayOutputStream().also { out -> GZIPOutputStream(out).use { it.write(bytes) } }.toByteArray()
+
+    @Test
+    fun `reads every extension with its urls, versions and sources`() {
+        val extensions = RepoIndexV2.decode(index())
+
+        assertEquals(listOf("eu.kanade.tachiyomi.extension.all.akuma", "eu.kanade.tachiyomi.extension.en.cubari"), extensions.map { it.pkgName })
+
+        val akuma = extensions.first()
+        assertEquals("Akuma", akuma.name)
+        assertEquals("https://example.org/akuma.apk", akuma.apkUrl)
+        assertEquals("https://example.org/akuma.png", akuma.iconUrl)
+        assertEquals("1.6", akuma.libVersion)
+        assertEquals(106010L, akuma.versionCode)
+        assertEquals("1.6.10", akuma.versionName)
+        assertEquals(3, akuma.contentRating)
+        assertEquals(listOf("en", "fr"), akuma.sources.map { it.lang })
+        assertEquals(1843646695111412994L, akuma.sources[0].id)
+        assertEquals(-42L, akuma.sources[1].id)
+        assertEquals("https://akuma.moe", akuma.sources[0].baseUrl)
+
+        val cubari = extensions[1]
+        assertEquals("Tachiyomi: Cubari", cubari.name)
+        assertEquals(1, cubari.contentRating)
+        assertTrue(cubari.sources.isEmpty())
     }
 
     @Test
-    fun readsTheRepositoryHeader() {
-        val index = RepoIndexV2.decode(sample())
-        assertEquals("Keiyoushi", index.name)
-        assertEquals("KEI", index.shortName)
-        assertEquals("9add655a78e96c4ec7a53ef89dccb557cb5d767489fac5e785d671a5a75d4da2", index.signingKeyFingerprint)
-        assertEquals("https://keiyoushi.github.io", index.website)
+    fun `reads a gzip-compressed index the same as a plain one`() {
+        assertEquals(RepoIndexV2.decode(index()), RepoIndexV2.decode(gzip(index())))
     }
 
     @Test
-    fun readsEveryExtensionWithItsDetails() {
-        val extensions = RepoIndexV2.decode(sample()).extensions
-        assertEquals(listOf("AchyManga", "AHottie", "HentaiFox"), extensions.map { it.name })
-
-        val achy = extensions.first()
-        assertEquals("eu.kanade.tachiyomi.extension.all.achymanga", achy.pkg)
-        assertEquals(
-            "https://github.com/keiyoushi/extensions/releases/download/b4f9106-0/tachiyomi-all.achymanga-v1.6.1.apk",
-            achy.apkUrl,
-        )
-        assertTrue(achy.iconUrl.endsWith("/achymanga/res/mipmap-xhdpi/ic_launcher.png"))
-        assertEquals("1.6", achy.libVersion)
-        assertEquals("1.6.1", achy.versionName)
-        assertEquals(106001L, achy.versionCode)
-        assertEquals("all", achy.lang)
-        assertEquals(listOf("es", "en"), achy.sources.map { it.lang })
-        assertEquals(9124545289113350724L, achy.sources.first().id)
-        assertEquals("https://achymanga.online", achy.sources.first().baseUrl)
+    fun `an index without extensions is empty rather than an error`() {
+        val bytes = Proto().apply { string(1, "Empty") }.toByteArray()
+        assertTrue(RepoIndexV2.decode(bytes).isEmpty())
     }
 
     @Test
-    fun contentRatingThreeIsAdult() {
-        val byName = RepoIndexV2.decode(sample()).extensions.associateBy { it.name }
-        assertFalse(byName.getValue("AchyManga").isNsfw)
-        assertTrue(byName.getValue("HentaiFox").isNsfw)
+    fun `a truncated index is rejected`() {
+        val bytes = index()
+        assertThrows(IllegalStateException::class.java) {
+            RepoIndexV2.decode(bytes.copyOf(bytes.size - 5))
+        }
     }
 
     @Test
-    fun acceptsAnAlreadyDecompressedIndex() {
-        val raw = java.util.zip.GZIPInputStream(sample().inputStream()).use { it.readBytes() }
-        assertEquals(3, RepoIndexV2.decode(raw).extensions.size)
+    fun `accepts the base url or any index file people paste`() {
+        val keiyoushi = "https://raw.githubusercontent.com/keiyoushi/extensions/repo"
+        assertEquals(keiyoushi, normalizeRepoBaseUrl("$keiyoushi/index.pb"))
+        assertEquals(keiyoushi, normalizeRepoBaseUrl("$keiyoushi/index.min.json"))
+        assertEquals(keiyoushi, normalizeRepoBaseUrl("$keiyoushi/repo.json"))
+        assertEquals(keiyoushi, normalizeRepoBaseUrl("  $keiyoushi/  "))
+        assertEquals(keiyoushi, normalizeRepoBaseUrl(keiyoushi))
+
+        val felipe = "https://raw.githubusercontent.com/FelipeGFA/extensoes/refs/heads/repo"
+        assertEquals(felipe, normalizeRepoBaseUrl("$felipe/index.pb"))
     }
 
     @Test
-    fun rejectsSomethingThatIsNotAnIndex() {
-        assertThrows(Exception::class.java) { RepoIndexV2.decode("<html>Not found</html>".toByteArray()) }
+    fun `rejects a url that is not http`() {
+        assertThrows(IllegalArgumentException::class.java) { normalizeRepoBaseUrl("ftp://example.org/repo") }
+    }
+
+    @Test
+    fun `language comes from the sources, else from the package name`() {
+        assertEquals("all", extensionLang("eu.kanade.tachiyomi.extension.all.akuma", listOf("en", "fr")))
+        assertEquals("pt-BR", extensionLang("eu.kanade.tachiyomi.extension.pt.amuy", listOf("pt-BR")))
+        assertEquals("en", extensionLang("eu.kanade.tachiyomi.extension.all.mango", listOf("en", "en")))
+        assertEquals("ja", extensionLang("eu.kanade.tachiyomi.extension.ja.site", emptyList()))
+        assertEquals("", extensionLang("org.example.site", emptyList()))
     }
 }

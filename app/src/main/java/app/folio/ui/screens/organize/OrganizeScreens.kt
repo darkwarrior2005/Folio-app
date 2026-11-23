@@ -21,14 +21,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Delete
-import androidx.compose.material.icons.rounded.DragHandle
-import androidx.compose.material.icons.rounded.Edit
-import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -62,6 +54,7 @@ import app.folio.ui.components.ReorderableColumn
 import app.folio.ui.components.SectionHeader
 import app.folio.ui.components.TextInputDialog
 import app.folio.ui.folioViewModel
+import app.folio.ui.icons.FolioIcons
 import app.folio.ui.screens.library.label
 import app.folio.ui.theme.LocalSpacing
 import app.folio.ui.util.Format
@@ -92,7 +85,7 @@ fun CollectionsScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            FolioIcons.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                         )
                     }
@@ -101,7 +94,7 @@ fun CollectionsScreen(
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreate = true }) {
-                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.action_create))
+                Icon(FolioIcons.Add, contentDescription = stringResource(R.string.action_create))
             }
         },
     ) { padding ->
@@ -153,10 +146,10 @@ fun CollectionsScreen(
                             )
                         }
                         IconButton(onClick = { renaming = entry.collection.id }) {
-                            Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.action_rename))
+                            Icon(FolioIcons.Edit, contentDescription = stringResource(R.string.action_rename))
                         }
                         IconButton(onClick = { deleting = entry.collection.id }) {
-                            Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.action_delete))
+                            Icon(FolioIcons.Delete, contentDescription = stringResource(R.string.action_delete))
                         }
                     }
                 }
@@ -237,14 +230,14 @@ fun CollectionDetailScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            FolioIcons.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                         )
                     }
                 },
                 actions = {
                     IconButton(onClick = { renaming = true }) {
-                        Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.action_rename))
+                        Icon(FolioIcons.Edit, contentDescription = stringResource(R.string.action_rename))
                     }
                 },
             )
@@ -314,7 +307,7 @@ fun QueueScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            FolioIcons.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                         )
                     }
@@ -398,11 +391,11 @@ private fun ReorderRow(
             )
         }
         IconButton(onClick = onRemove) {
-            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_remove))
+            Icon(FolioIcons.Close, contentDescription = stringResource(R.string.action_remove))
         }
         Box(handle.padding(8.dp)) {
             Icon(
-                Icons.Rounded.DragHandle,
+                FolioIcons.DragHandle,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -427,7 +420,7 @@ fun TrashScreen(
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
-                            Icons.AutoMirrored.Rounded.ArrowBack,
+                            FolioIcons.ArrowBack,
                             contentDescription = stringResource(R.string.action_back),
                         )
                     }
@@ -470,13 +463,13 @@ fun TrashScreen(
                         }
                         IconButton(onClick = { viewModel.restore(book.id) }) {
                             Icon(
-                                Icons.Rounded.Restore,
+                                FolioIcons.Restore,
                                 contentDescription = stringResource(R.string.trash_restore),
                             )
                         }
                         IconButton(onClick = { viewModel.purge(book.id) }) {
                             Icon(
-                                Icons.Rounded.Delete,
+                                FolioIcons.Delete,
                                 contentDescription = stringResource(R.string.trash_delete_forever),
                                 tint = MaterialTheme.colorScheme.error,
                             )

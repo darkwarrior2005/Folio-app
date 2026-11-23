@@ -3,30 +3,49 @@ package app.folio.manga.extension
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageInstaller
+import app.folio.FolioApp
+import kotlinx.coroutines.launch
 
 /**
- * Notices extension packages being added, replaced or removed outside the app's own install
- * flow (the Play Store's cousin, `adb install`, a file manager) so [ExtensionManager] stays in
- * sync.
+ * Receives the outcome of an extension install, and the system's request to show the user the
+ * confirmation dialog.
+ *
+ * Also listens for packages being added, replaced or removed so the source list follows what is
+ * actually installed, including extensions installed from outside Folio.
  */
 class ExtensionInstallReceiver : BroadcastReceiver() {
 
-    var listener: Listener? = null
-
     override fun onReceive(context: Context, intent: Intent) {
-        val packageName = intent.data?.schemeSpecificPart ?: return
         when (intent.action) {
-            Intent.ACTION_PACKAGE_ADDED, Intent.ACTION_PACKAGE_REPLACED -> listener?.onExtensionChanged(packageName)
-            Intent.ACTION_PACKAGE_REMOVED -> {
-                if (!intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) {
-                    listener?.onExtensionRemoved(packageName)
-                }
-            }
+            ACTION_INSTALL_STATUS -> handleInstallStatus(context, intent)
+            Intent.ACTION_PACKAGE_ADDED,
+            Intent.ACTION_PACKAGE_REPLACED,
+            Intent.ACTION_PACKAGE_REMOVED,
+            -> reloadExtensions(context)
         }
     }
 
-    interface Listener {
-        fun onExtensionChanged(packageName: String)
-        fun onExtensionRemoved(packageName: String)
+    private fun handleInstallStatus(context: Context, intent: Intent) {
+        when (intent.getIntExtra(PackageInstaller.EXTRA_STATUS, PackageInstaller.STATUS_FAILURE)) {
+            PackageInstaller.STATUS_PENDING_USER_ACTION -> {
+                // The system wants the user to confirm. Nothing installs until they do.
+                @Suppress("DEPRECATION")
+                val confirmation = intent.getParcelableExtra<Intent>(Intent.EXTRA_INTENT)
+                confirmation?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                confirmation?.let { context.startActivity(it) }
+            }
+            PackageInstaller.STATUS_SUCCESS -> reloadExtensions(context)
+            else -> Unit // A failure message is shown by the system installer.
+        }
+    }
+
+    private fun reloadExtensions(context: Context) {
+        val container = (context.applicationContext as? FolioApp)?.container ?: return
+        container.appScope.launch { container.extensions.refreshInstalled() }
+    }
+
+    companion object {
+        const val ACTION_INSTALL_STATUS = "app.folio.EXTENSION_INSTALL_STATUS"
     }
 }

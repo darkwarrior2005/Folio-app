@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "6a05a606858cbb6ddf5b71427abdcad7",
+    "identityHash": "b6deb986829cc4e6ca1dcb691e68c597",
     "entities": [
       {
         "tableName": "books",
@@ -2241,7 +2241,7 @@
       },
       {
         "tableName": "manga",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceId` INTEGER NOT NULL, `url` TEXT NOT NULL, `title` TEXT NOT NULL, `artist` TEXT, `author` TEXT, `description` TEXT, `genre` TEXT, `status` INTEGER NOT NULL, `thumbnailUrl` TEXT, `favorite` INTEGER NOT NULL, `initialized` INTEGER NOT NULL, `updateStrategy` TEXT NOT NULL, `dateAdded` INTEGER NOT NULL, `lastUpdate` INTEGER NOT NULL, `memo` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `sourceId` INTEGER NOT NULL, `url` TEXT NOT NULL, `title` TEXT NOT NULL, `author` TEXT, `artist` TEXT, `description` TEXT, `genre` TEXT, `status` INTEGER NOT NULL, `thumbnailUrl` TEXT, `coverPath` TEXT, `favorite` INTEGER NOT NULL, `initialized` INTEGER NOT NULL, `onlyFetchOnce` INTEGER NOT NULL, `dateAdded` INTEGER NOT NULL, `lastChapterFetchAt` INTEGER, `lastReadAt` INTEGER)",
         "fields": [
           {
             "fieldPath": "id",
@@ -2268,13 +2268,13 @@
             "notNull": true
           },
           {
-            "fieldPath": "artist",
-            "columnName": "artist",
+            "fieldPath": "author",
+            "columnName": "author",
             "affinity": "TEXT"
           },
           {
-            "fieldPath": "author",
-            "columnName": "author",
+            "fieldPath": "artist",
+            "columnName": "artist",
             "affinity": "TEXT"
           },
           {
@@ -2299,6 +2299,11 @@
             "affinity": "TEXT"
           },
           {
+            "fieldPath": "coverPath",
+            "columnName": "coverPath",
+            "affinity": "TEXT"
+          },
+          {
             "fieldPath": "favorite",
             "columnName": "favorite",
             "affinity": "INTEGER",
@@ -2311,9 +2316,9 @@
             "notNull": true
           },
           {
-            "fieldPath": "updateStrategy",
-            "columnName": "updateStrategy",
-            "affinity": "TEXT",
+            "fieldPath": "onlyFetchOnce",
+            "columnName": "onlyFetchOnce",
+            "affinity": "INTEGER",
             "notNull": true
           },
           {
@@ -2323,15 +2328,14 @@
             "notNull": true
           },
           {
-            "fieldPath": "lastUpdate",
-            "columnName": "lastUpdate",
-            "affinity": "INTEGER",
-            "notNull": true
+            "fieldPath": "lastChapterFetchAt",
+            "columnName": "lastChapterFetchAt",
+            "affinity": "INTEGER"
           },
           {
-            "fieldPath": "memo",
-            "columnName": "memo",
-            "affinity": "TEXT"
+            "fieldPath": "lastReadAt",
+            "columnName": "lastReadAt",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -2359,12 +2363,21 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_manga_favorite` ON `${TABLE_NAME}` (`favorite`)"
+          },
+          {
+            "name": "index_manga_title",
+            "unique": false,
+            "columnNames": [
+              "title"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_manga_title` ON `${TABLE_NAME}` (`title`)"
           }
         ]
       },
       {
         "tableName": "manga_chapters",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mangaId` INTEGER NOT NULL, `url` TEXT NOT NULL, `name` TEXT NOT NULL, `scanlator` TEXT, `read` INTEGER NOT NULL, `bookmark` INTEGER NOT NULL, `lastPageRead` INTEGER NOT NULL, `pagesCount` INTEGER NOT NULL, `chapterNumber` REAL NOT NULL, `dateUpload` INTEGER NOT NULL, `dateFetch` INTEGER NOT NULL, `sourceOrder` INTEGER NOT NULL, `memo` TEXT, FOREIGN KEY(`mangaId`) REFERENCES `manga`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mangaId` INTEGER NOT NULL, `url` TEXT NOT NULL, `name` TEXT NOT NULL, `scanlator` TEXT, `chapterNumber` REAL NOT NULL, `dateUpload` INTEGER NOT NULL, `dateFetch` INTEGER NOT NULL, `sourceOrder` INTEGER NOT NULL, `read` INTEGER NOT NULL, `bookmark` INTEGER NOT NULL, `lastPageRead` INTEGER NOT NULL, `pageCount` INTEGER, FOREIGN KEY(`mangaId`) REFERENCES `manga`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -2396,30 +2409,6 @@
             "affinity": "TEXT"
           },
           {
-            "fieldPath": "read",
-            "columnName": "read",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "bookmark",
-            "columnName": "bookmark",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "lastPageRead",
-            "columnName": "lastPageRead",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "pagesCount",
-            "columnName": "pagesCount",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
             "fieldPath": "chapterNumber",
             "columnName": "chapterNumber",
             "affinity": "REAL",
@@ -2444,9 +2433,27 @@
             "notNull": true
           },
           {
-            "fieldPath": "memo",
-            "columnName": "memo",
-            "affinity": "TEXT"
+            "fieldPath": "read",
+            "columnName": "read",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bookmark",
+            "columnName": "bookmark",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "lastPageRead",
+            "columnName": "lastPageRead",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pageCount",
+            "columnName": "pageCount",
+            "affinity": "INTEGER"
           }
         ],
         "primaryKey": {
@@ -2467,13 +2474,13 @@
             "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_manga_chapters_mangaId_url` ON `${TABLE_NAME}` (`mangaId`, `url`)"
           },
           {
-            "name": "index_manga_chapters_mangaId",
+            "name": "index_manga_chapters_read",
             "unique": false,
             "columnNames": [
-              "mangaId"
+              "read"
             ],
             "orders": [],
-            "createSql": "CREATE INDEX IF NOT EXISTS `index_manga_chapters_mangaId` ON `${TABLE_NAME}` (`mangaId`)"
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_manga_chapters_read` ON `${TABLE_NAME}` (`read`)"
           }
         ],
         "foreignKeys": [
@@ -2492,17 +2499,11 @@
       },
       {
         "tableName": "manga_downloads",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `mangaId` INTEGER NOT NULL, `chapterId` INTEGER NOT NULL, `queuedAt` INTEGER NOT NULL, FOREIGN KEY(`chapterId`) REFERENCES `manga_chapters`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `chapterId` INTEGER NOT NULL, `mangaId` INTEGER NOT NULL, `status` TEXT NOT NULL, `path` TEXT, `pageCount` INTEGER, `downloadedPages` INTEGER NOT NULL, `sizeBytes` INTEGER NOT NULL, `queuedAt` INTEGER NOT NULL, `completedAt` INTEGER, `error` TEXT, FOREIGN KEY(`chapterId`) REFERENCES `manga_chapters`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE , FOREIGN KEY(`mangaId`) REFERENCES `manga`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
             "columnName": "id",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
-          {
-            "fieldPath": "mangaId",
-            "columnName": "mangaId",
             "affinity": "INTEGER",
             "notNull": true
           },
@@ -2513,10 +2514,54 @@
             "notNull": true
           },
           {
+            "fieldPath": "mangaId",
+            "columnName": "mangaId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "status",
+            "columnName": "status",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "path",
+            "columnName": "path",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "pageCount",
+            "columnName": "pageCount",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "downloadedPages",
+            "columnName": "downloadedPages",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sizeBytes",
+            "columnName": "sizeBytes",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
             "fieldPath": "queuedAt",
             "columnName": "queuedAt",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "completedAt",
+            "columnName": "completedAt",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "error",
+            "columnName": "error",
+            "affinity": "TEXT"
           }
         ],
         "primaryKey": {
@@ -2543,6 +2588,15 @@
             ],
             "orders": [],
             "createSql": "CREATE INDEX IF NOT EXISTS `index_manga_downloads_mangaId` ON `${TABLE_NAME}` (`mangaId`)"
+          },
+          {
+            "name": "index_manga_downloads_status",
+            "unique": false,
+            "columnNames": [
+              "status"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_manga_downloads_status` ON `${TABLE_NAME}` (`status`)"
           }
         ],
         "foreignKeys": [
@@ -2556,19 +2610,24 @@
             "referencedColumns": [
               "id"
             ]
+          },
+          {
+            "table": "manga",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "mangaId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
           }
         ]
       },
       {
         "tableName": "extension_repos",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `baseUrl` TEXT NOT NULL, `name` TEXT NOT NULL, `website` TEXT, `signingKeyFingerprint` TEXT)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`baseUrl` TEXT NOT NULL, `name` TEXT NOT NULL, `shortName` TEXT, `website` TEXT NOT NULL, `signingKeyFingerprint` TEXT NOT NULL, `addedAt` INTEGER NOT NULL, PRIMARY KEY(`baseUrl`))",
         "fields": [
-          {
-            "fieldPath": "id",
-            "columnName": "id",
-            "affinity": "INTEGER",
-            "notNull": true
-          },
           {
             "fieldPath": "baseUrl",
             "columnName": "baseUrl",
@@ -2582,47 +2641,43 @@
             "notNull": true
           },
           {
+            "fieldPath": "shortName",
+            "columnName": "shortName",
+            "affinity": "TEXT"
+          },
+          {
             "fieldPath": "website",
             "columnName": "website",
-            "affinity": "TEXT"
+            "affinity": "TEXT",
+            "notNull": true
           },
           {
             "fieldPath": "signingKeyFingerprint",
             "columnName": "signingKeyFingerprint",
-            "affinity": "TEXT"
-          }
-        ],
-        "primaryKey": {
-          "autoGenerate": true,
-          "columnNames": [
-            "id"
-          ]
-        },
-        "indices": [
-          {
-            "name": "index_extension_repos_baseUrl",
-            "unique": true,
-            "columnNames": [
-              "baseUrl"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_extension_repos_baseUrl` ON `${TABLE_NAME}` (`baseUrl`)"
-          }
-        ]
-      },
-      {
-        "tableName": "trusted_extensions",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `packageName` TEXT NOT NULL, `versionCode` INTEGER NOT NULL, `signatureHash` TEXT NOT NULL)",
-        "fields": [
-          {
-            "fieldPath": "id",
-            "columnName": "id",
-            "affinity": "INTEGER",
+            "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "packageName",
-            "columnName": "packageName",
+            "fieldPath": "addedAt",
+            "columnName": "addedAt",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "baseUrl"
+          ]
+        }
+      },
+      {
+        "tableName": "trusted_extensions",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`pkgName` TEXT NOT NULL, `versionCode` INTEGER NOT NULL, `signature` TEXT NOT NULL, `trustedAt` INTEGER NOT NULL, PRIMARY KEY(`pkgName`, `versionCode`, `signature`))",
+        "fields": [
+          {
+            "fieldPath": "pkgName",
+            "columnName": "pkgName",
             "affinity": "TEXT",
             "notNull": true
           },
@@ -2633,36 +2688,31 @@
             "notNull": true
           },
           {
-            "fieldPath": "signatureHash",
-            "columnName": "signatureHash",
+            "fieldPath": "signature",
+            "columnName": "signature",
             "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "trustedAt",
+            "columnName": "trustedAt",
+            "affinity": "INTEGER",
             "notNull": true
           }
         ],
         "primaryKey": {
-          "autoGenerate": true,
+          "autoGenerate": false,
           "columnNames": [
-            "id"
+            "pkgName",
+            "versionCode",
+            "signature"
           ]
-        },
-        "indices": [
-          {
-            "name": "index_trusted_extensions_packageName_versionCode_signatureHash",
-            "unique": true,
-            "columnNames": [
-              "packageName",
-              "versionCode",
-              "signatureHash"
-            ],
-            "orders": [],
-            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_trusted_extensions_packageName_versionCode_signatureHash` ON `${TABLE_NAME}` (`packageName`, `versionCode`, `signatureHash`)"
-          }
-        ]
+        }
       }
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6a05a606858cbb6ddf5b71427abdcad7')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'b6deb986829cc4e6ca1dcb691e68c597')"
     ]
   }
 }

@@ -5,4 +5,8 @@
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:navigationBarColor">@android:color/transparent</item>
     </style>
+
+    <!-- The extension-built settings screen for a source follows Folio's light or dark, not the system's. -->
+    <style name="ThemeOverlay.Folio.SourcePrefs.Dark" parent="ThemeOverlay.AppCompat.Dark" />
+    <style name="ThemeOverlay.Folio.SourcePrefs.Light" parent="ThemeOverlay.AppCompat.Light" />
 </resources>

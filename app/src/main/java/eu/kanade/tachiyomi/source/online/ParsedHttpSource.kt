@@ -1,70 +1,105 @@
 package eu.kanade.tachiyomi.source.online
 
-import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.source.model.MangasPage
 import eu.kanade.tachiyomi.source.model.Page
 import eu.kanade.tachiyomi.source.model.SChapter
 import eu.kanade.tachiyomi.source.model.SManga
 import eu.kanade.tachiyomi.util.asJsoup
-import okhttp3.Request
 import okhttp3.Response
+import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
-/** For sites with no JSON API: every `*Parse` is driven by CSS selectors over the raw HTML. */
+/**
+ * A source for a website parsed with Jsoup, driven by CSS selectors.
+ */
+@Suppress("DEPRECATION")
+@Deprecated(
+    message = "In most cases sources only require a subset of the methods from this class. " +
+        "Source developers should make their own implementation according to their needs.",
+)
 abstract class ParsedHttpSource : HttpSource() {
-
-    abstract fun popularMangaSelector(): String
-    abstract fun popularMangaFromElement(element: Element): SManga
-    abstract fun popularMangaNextPageSelector(): String?
 
     override fun popularMangaParse(response: Response): MangasPage {
         val document = response.asJsoup()
-        val mangas = document.select(popularMangaSelector()).map { popularMangaFromElement(it) }
-        val hasNextPage = popularMangaNextPageSelector()?.let { document.select(it).first() != null } ?: false
+
+        val mangas = document.select(popularMangaSelector()).map { element ->
+            popularMangaFromElement(element)
+        }
+
+        val hasNextPage = popularMangaNextPageSelector()?.let { selector ->
+            document.select(selector).first()
+        } != null
+
         return MangasPage(mangas, hasNextPage)
     }
 
-    abstract fun searchMangaSelector(): String
-    abstract fun searchMangaFromElement(element: Element): SManga
-    abstract fun searchMangaNextPageSelector(): String?
+    /** Selector matching one element per manga. */
+    protected abstract fun popularMangaSelector(): String
+
+    /** Builds a manga from an element matched by [popularMangaSelector]. */
+    protected abstract fun popularMangaFromElement(element: Element): SManga
+
+    /** Selector for the link to the next page, or null when there is none. */
+    protected abstract fun popularMangaNextPageSelector(): String?
 
     override fun searchMangaParse(response: Response): MangasPage {
         val document = response.asJsoup()
-        val mangas = document.select(searchMangaSelector()).map { searchMangaFromElement(it) }
-        val hasNextPage = searchMangaNextPageSelector()?.let { document.select(it).first() != null } ?: false
+
+        val mangas = document.select(searchMangaSelector()).map { element ->
+            searchMangaFromElement(element)
+        }
+
+        val hasNextPage = searchMangaNextPageSelector()?.let { selector ->
+            document.select(selector).first()
+        } != null
+
         return MangasPage(mangas, hasNextPage)
     }
 
-    open fun latestUpdatesSelector(): String =
-        throw UnsupportedOperationException("This source does not support latest")
-    open fun latestUpdatesFromElement(element: Element): SManga =
-        throw UnsupportedOperationException("This source does not support latest")
-    open fun latestUpdatesNextPageSelector(): String? = null
+    protected abstract fun searchMangaSelector(): String
+
+    protected abstract fun searchMangaFromElement(element: Element): SManga
+
+    protected abstract fun searchMangaNextPageSelector(): String?
 
     override fun latestUpdatesParse(response: Response): MangasPage {
         val document = response.asJsoup()
-        val mangas = document.select(latestUpdatesSelector()).map { latestUpdatesFromElement(it) }
-        val hasNextPage = latestUpdatesNextPageSelector()?.let { document.select(it).first() != null } ?: false
+
+        val mangas = document.select(latestUpdatesSelector()).map { element ->
+            latestUpdatesFromElement(element)
+        }
+
+        val hasNextPage = latestUpdatesNextPageSelector()?.let { selector ->
+            document.select(selector).first()
+        } != null
+
         return MangasPage(mangas, hasNextPage)
     }
 
-    abstract fun mangaDetailsParse(document: org.jsoup.nodes.Document): SManga
+    protected abstract fun latestUpdatesSelector(): String
+
+    protected abstract fun latestUpdatesFromElement(element: Element): SManga
+
+    protected abstract fun latestUpdatesNextPageSelector(): String?
+
     override fun mangaDetailsParse(response: Response): SManga = mangaDetailsParse(response.asJsoup())
 
-    open fun chapterListSelector(): String = throw UnsupportedOperationException("Stub")
-    abstract fun chapterFromElement(element: Element): SChapter
-
-    override fun chapterListRequest(manga: SManga): Request = GET(baseUrl + manga.url, headers)
+    protected abstract fun mangaDetailsParse(document: Document): SManga
 
     override fun chapterListParse(response: Response): List<SChapter> {
         val document = response.asJsoup()
         return document.select(chapterListSelector()).map { chapterFromElement(it) }
     }
 
-    abstract fun pageListParse(document: org.jsoup.nodes.Document): List<Page>
+    protected abstract fun chapterListSelector(): String
+
+    protected abstract fun chapterFromElement(element: Element): SChapter
+
     override fun pageListParse(response: Response): List<Page> = pageListParse(response.asJsoup())
 
+    protected abstract fun pageListParse(document: Document): List<Page>
+
     override fun imageUrlParse(response: Response): String = imageUrlParse(response.asJsoup())
-    open fun imageUrlParse(document: org.jsoup.nodes.Document): String =
-        throw UnsupportedOperationException("Not used")
+
+    protected abstract fun imageUrlParse(document: Document): String
 }

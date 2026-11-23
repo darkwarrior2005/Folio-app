@@ -18,14 +18,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.Redo
-import androidx.compose.material.icons.automirrored.rounded.Undo
-import androidx.compose.material.icons.rounded.AutoFixNormal
-import androidx.compose.material.icons.rounded.BorderColor
-import androidx.compose.material.icons.rounded.ChevronLeft
-import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.Draw
 import androidx.compose.material3.FilledIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,6 +49,7 @@ import app.folio.core.model.InkStyle
 import app.folio.core.model.InkTool
 import app.folio.core.model.InkToolStyle
 import app.folio.reader.api.ScribbleState
+import app.folio.ui.icons.FolioIcons
 
 @Composable
 fun ScribbleToolbar(
@@ -88,7 +81,7 @@ fun ScribbleToolbar(
             if (onPrevious != null && onNext != null) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onPrevious) {
-                        Icon(Icons.Rounded.ChevronLeft, contentDescription = stringResource(R.string.scribble_previous_page))
+                        Icon(FolioIcons.ChevronLeft, contentDescription = stringResource(R.string.scribble_previous_page))
                     }
                     Text(
                         text = pageLabel.orEmpty(),
@@ -98,27 +91,27 @@ fun ScribbleToolbar(
                         modifier = Modifier.weight(1f),
                     )
                     IconButton(onClick = onNext) {
-                        Icon(Icons.Rounded.ChevronRight, contentDescription = stringResource(R.string.scribble_next_page))
+                        Icon(FolioIcons.ChevronRight, contentDescription = stringResource(R.string.scribble_next_page))
                     }
                 }
             }
 
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 ToolToggle(InkTool.PEN, scribble.tool, onTool) {
-                    Icon(Icons.Rounded.Draw, contentDescription = stringResource(R.string.scribble_pen))
+                    Icon(FolioIcons.Draw, contentDescription = stringResource(R.string.scribble_pen))
                 }
                 ToolToggle(InkTool.HIGHLIGHTER, scribble.tool, onTool) {
-                    Icon(Icons.Rounded.BorderColor, contentDescription = stringResource(R.string.scribble_highlighter))
+                    Icon(FolioIcons.BorderColor, contentDescription = stringResource(R.string.scribble_highlighter))
                 }
                 ToolToggle(InkTool.ERASER, scribble.tool, onTool) {
-                    Icon(Icons.Rounded.AutoFixNormal, contentDescription = stringResource(R.string.scribble_eraser))
+                    Icon(FolioIcons.AutoFixNormal, contentDescription = stringResource(R.string.scribble_eraser))
                 }
                 Spacer(Modifier.weight(1f))
                 IconButton(onClick = onUndo, enabled = undoRedo.canUndo) {
-                    Icon(Icons.AutoMirrored.Rounded.Undo, contentDescription = stringResource(R.string.action_undo))
+                    Icon(FolioIcons.Undo, contentDescription = stringResource(R.string.action_undo))
                 }
                 IconButton(onClick = onRedo, enabled = undoRedo.canRedo) {
-                    Icon(Icons.AutoMirrored.Rounded.Redo, contentDescription = stringResource(R.string.scribble_redo))
+                    Icon(FolioIcons.Redo, contentDescription = stringResource(R.string.scribble_redo))
                 }
                 TextButton(onClick = onDone) { Text(stringResource(R.string.action_done)) }
             }

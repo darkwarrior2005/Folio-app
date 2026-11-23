@@ -6,10 +6,11 @@ import android.view.WindowManager
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.lifecycleScope
 import app.folio.data.settings.AppSettings
@@ -18,8 +19,10 @@ import app.folio.pomodoro.PomodoroNotifications
 import app.folio.reader.epub.ReaderFragmentFactory
 import app.folio.ui.FolioRoot
 import app.folio.ui.LocalContainer
+import app.folio.ui.components.BedtimeNudge
+import app.folio.ui.components.IncognitoKeyboard
+import app.folio.ui.components.NightLightOverlay
 import app.folio.ui.theme.FolioAppTheme
-import androidx.compose.runtime.CompositionLocalProvider
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -68,22 +71,15 @@ class MainActivity : AppCompatActivity() {
                 applySecureFlag(settings.privacy.hideInRecents)
             }
 
-            val bedtimeDismissedUntil = androidx.compose.runtime.remember { androidx.compose.runtime.mutableLongStateOf(0L) }
-
             CompositionLocalProvider(LocalContainer provides container) {
                 FolioAppTheme(settings) {
                     Surface(Modifier.fillMaxSize()) {
-                        app.folio.ui.components.IncognitoKeyboard(settings.privacy.incognitoKeyboard) {
-                            app.folio.ui.components.NightLightOverlay(
+                        IncognitoKeyboard(enabled = settings.privacy.incognitoKeyboard) {
+                            NightLightOverlay(
                                 settings = settings.nightLight,
-                                reduceMotion = settings.accessibility.reduceMotion,
+                                reduceMotion = settings.accessibility.reduceMotion || !settings.appearance.animations,
                             ) {
-                                app.folio.ui.components.BedtimeNudge(
-                                    settings = settings.nightLight,
-                                    dismissedUntil = bedtimeDismissedUntil.longValue,
-                                    onSnooze = { bedtimeDismissedUntil.longValue = it },
-                                    onGoodNight = { bedtimeDismissedUntil.longValue = it },
-                                ) {
+                                BedtimeNudge(settings.nightLight) {
                                     FolioRoot(
                                         settings = settings,
                                         locked = isLocked && settings.privacy.lockEnabled,
@@ -109,7 +105,8 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         super.onStop()
         backgroundedAt = System.currentTimeMillis()
-        app.folio.widget.ContinueReadingWidget.refreshAll(this)
+        // The home-screen widget shows the book just read.
+        container.appScope.launch { app.folio.widget.ContinueReadingWidget.refresh(applicationContext) }
     }
 
     override fun onStart() {
@@ -138,8 +135,8 @@ class MainActivity : AppCompatActivity() {
     /** Files arriving from "Open with" or a share are copied in, since the grant is temporary. */
     private fun handleIntent(intent: Intent?) {
         when (intent?.action) {
-            app.folio.widget.ACTION_OPEN_BOOK -> {
-                val bookId = intent.getLongExtra(app.folio.widget.EXTRA_BOOK_ID, -1)
+            app.folio.widget.ContinueReadingWidget.ACTION_OPEN_BOOK -> {
+                val bookId = intent.getLongExtra(app.folio.widget.ContinueReadingWidget.EXTRA_BOOK_ID, -1L)
                 if (bookId > 0) openBookRequest.value = bookId
             }
 
@@ -159,9 +156,10 @@ class MainActivity : AppCompatActivity() {
                     awaitingOpen = true
                     container.imports.enqueue(listOf(uri.toString()), forceCopy = true)
                 } else {
-                    val text = intent.getStringExtra(Intent.EXTRA_TEXT)
-                    val url = text?.let { Regex("""https?://\S+""").find(it)?.value }
-                    if (url != null) container.pendingWebUrl.value = url
+                    // A link shared from a browser: offer to save the page.
+                    app.folio.web.WebLibrary.findUrl(intent.getStringExtra(Intent.EXTRA_TEXT))?.let { url ->
+                        container.pendingWebUrl.value = url
+                    }
                 }
             }
 

@@ -1,65 +1,53 @@
 package app.folio.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import app.folio.core.model.NightLight
+import app.folio.core.model.NightLightMode
 import app.folio.data.settings.NightLightSettings
 import kotlinx.coroutines.delay
 import java.util.Calendar
 
+/** Warm amber that takes the blue out of the screen without turning it orange. */
+private val NightAmber = Color(0xFFFF9A3C)
+
 /**
- * Draws a full-screen overlay over the whole app: an amber layer for warmth, then a black layer
- * for extra dimming. Never takes touches, and fades unless reduce-motion is on.
+ * Lays the warm night filter over [content]: an amber tint and, if asked, extra dimming. It only
+ * draws, so every touch still reaches the app beneath. The filter eases in and out over a few
+ * seconds when the schedule starts or ends, rather than switching abruptly.
  */
 @Composable
 fun NightLightOverlay(settings: NightLightSettings, reduceMotion: Boolean, content: @Composable () -> Unit) {
-    var nowMinutes by remember { mutableIntStateOf(currentMinutesOfDay()) }
-
-    LaunchedEffect(Unit) {
-        while (true) {
-            delay(30_000)
-            nowMinutes = currentMinutesOfDay()
+    val nowMinutes by produceState(minutesNow(), settings.mode) {
+        // Only a schedule needs the clock; re-checked each minute, at the top of the minute.
+        while (settings.mode == NightLightMode.SCHEDULED) {
+            value = minutesNow()
+            delay((60 - Calendar.getInstance().get(Calendar.SECOND)) * 1_000L)
         }
     }
+    val active = NightLight.isActive(settings.mode, nowMinutes, settings.startMinutes, settings.endMinutes)
+    val spec = if (reduceMotion) snap<Float>() else tween(durationMillis = 1_500)
+    val tint by animateFloatAsState(if (active) NightLight.tintAlpha(settings.warmth) else 0f, spec, label = "nightTint")
+    val dim by animateFloatAsState(if (active) NightLight.dimAlpha(settings.dim) else 0f, spec, label = "nightDim")
 
-    val targetTint = NightLight.tintAlpha(settings, nowMinutes)
-    val targetDim = NightLight.dimAlpha(settings, nowMinutes)
-    val tint by if (reduceMotion) {
-        androidx.compose.runtime.remember(targetTint) { androidx.compose.runtime.mutableFloatStateOf(targetTint) }
-    } else {
-        animateFloatAsState(targetValue = targetTint, label = "nightLightTint")
-    }
-    val dim by if (reduceMotion) {
-        androidx.compose.runtime.remember(targetDim) { androidx.compose.runtime.mutableFloatStateOf(targetDim) }
-    } else {
-        animateFloatAsState(targetValue = targetDim, label = "nightLightDim")
-    }
-
-    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+    Box(Modifier.fillMaxSize()) {
         content()
-        if (tint > 0f) {
-            // A plain Canvas with no pointerInput never intercepts touches, so this never blocks
-            // reading - it only draws.
+        if (tint > 0f || dim > 0f) {
             Canvas(Modifier.fillMaxSize()) {
-                drawRect(color = Color(0xFFFFA000).copy(alpha = tint * 0.35f))
-                if (dim > 0f) {
-                    drawRect(color = Color.Black.copy(alpha = dim * 0.6f))
-                }
+                if (tint > 0f) drawRect(NightAmber.copy(alpha = tint))
+                if (dim > 0f) drawRect(Color.Black.copy(alpha = dim))
             }
         }
     }
 }
 
-private fun currentMinutesOfDay(): Int {
-    val calendar = Calendar.getInstance()
-    return calendar.get(Calendar.HOUR_OF_DAY) * 60 + calendar.get(Calendar.MINUTE)
-}
+private fun minutesNow(): Int = Calendar.getInstance().let { it.get(Calendar.HOUR_OF_DAY) * 60 + it.get(Calendar.MINUTE) }

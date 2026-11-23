@@ -6,46 +6,45 @@ import okhttp3.CookieJar
 import okhttp3.HttpUrl
 
 /**
- * A cookie jar backed by the system [CookieManager], so Folio's OkHttp requests and the WebView
- * (used for Cloudflare and "Open the site") always share the same cookies.
+ * Backs OkHttp's cookie store with the system WebView cookie store, so cookies set in a
+ * WebView login flow are visible to source requests and the other way round.
  */
 class AndroidCookieJar : CookieJar {
 
-    private val manager: CookieManager = CookieManager.getInstance()
+    private val manager = CookieManager.getInstance()
 
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
         val urlString = url.toString()
-        for (cookie in cookies) {
-            manager.setCookie(urlString, cookie.toString())
-        }
-        manager.flush()
+        cookies.forEach { manager.setCookie(urlString, it.toString()) }
     }
 
-    override fun loadForRequest(url: HttpUrl): List<Cookie> {
+    override fun loadForRequest(url: HttpUrl): List<Cookie> = get(url)
+
+    fun get(url: HttpUrl): List<Cookie> {
         val cookies = manager.getCookie(url.toString())
+
         return if (!cookies.isNullOrEmpty()) {
-            cookies.split(";").mapNotNull { Cookie.parse(url, it.trim()) }
+            cookies.split(";").mapNotNull { Cookie.parse(url, it) }
         } else {
             emptyList()
         }
     }
 
-    fun get(url: HttpUrl): List<Cookie> = loadForRequest(url)
-
-    fun remove(url: HttpUrl, cookieNames: List<String>? = null, maxAge: Int = -1) {
+    fun remove(url: HttpUrl, cookieNames: List<String>? = null, maxAge: Int = -1): Int {
         val urlString = url.toString()
-        val cookies = manager.getCookie(urlString) ?: return
-        cookies.split(";").forEach { raw ->
-            val name = raw.trim().substringBefore('=')
-            if (cookieNames == null || name in cookieNames) {
-                manager.setCookie(urlString, "$name=; Max-Age=$maxAge")
-            }
-        }
-        manager.flush()
+        val cookies = manager.getCookie(urlString) ?: return 0
+
+        fun List<String>.filterNames(): List<String> =
+            if (cookieNames != null) filter { it in cookieNames } else this
+
+        return cookies.split(";")
+            .map { it.substringBefore("=") }
+            .filterNames()
+            .onEach { manager.setCookie(urlString, "$it=;Max-Age=$maxAge") }
+            .count()
     }
 
     fun removeAll() {
-        manager.removeAllCookies(null)
-        manager.flush()
+        manager.removeAllCookies {}
     }
 }

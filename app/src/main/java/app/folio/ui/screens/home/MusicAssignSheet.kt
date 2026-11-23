@@ -13,14 +13,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.CollectionsBookmark
-import androidx.compose.material.icons.rounded.GraphicEq
-import androidx.compose.material.icons.rounded.LibraryMusic
-import androidx.compose.material.icons.rounded.MusicNote
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
@@ -65,6 +57,7 @@ import app.folio.data.repo.BookMusicSettings
 import app.folio.data.repo.CollectionMusicSettings
 import app.folio.ui.LocalContainer
 import app.folio.ui.components.BookCover
+import app.folio.ui.icons.FolioIcons
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.Locale
@@ -112,7 +105,7 @@ private fun TargetPicker(onPick: (MusicTarget) -> Unit) {
     val booksWithMusic by container.music.booksWithMusic.collectAsStateWithLifecycle(emptyList())
     val shelvesWithMusic by container.music.collectionsWithMusic.collectAsStateWithLifecycle(emptyList())
     var showShelves by rememberSaveable { mutableStateOf(false) }
-    var query by rememberSaveable { mutableStateOf("") }
+    var query by remember { mutableStateOf("") }
     val needle = query.trim().lowercase(Locale.ROOT)
 
     // Reading music plays for PDF and EPUB books; list what you're reading first.
@@ -154,7 +147,7 @@ private fun TargetPicker(onPick: (MusicTarget) -> Unit) {
             value = query,
             onValueChange = { query = it },
             singleLine = true,
-            leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+            leadingIcon = { Icon(FolioIcons.Search, contentDescription = null) },
             placeholder = { Text(stringResource(R.string.action_search)) },
             modifier = Modifier
                 .fillMaxWidth()
@@ -221,7 +214,7 @@ private fun TargetPicker(onPick: (MusicTarget) -> Unit) {
                             },
                         )
                     },
-                    leadingContent = { Icon(Icons.Rounded.CollectionsBookmark, contentDescription = null) },
+                    leadingContent = { Icon(FolioIcons.CollectionsBookmark, contentDescription = null) },
                     trailingContent = { if (hasMusic) MusicMark() },
                     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                     modifier = Modifier.clickable {
@@ -254,7 +247,7 @@ private fun MusicPicker(
     var mode by remember(target) { mutableStateOf(BookMusicMode.LOOP) }
     var autoplay by remember(target) { mutableStateOf(true) }
     var hadMusic by remember(target) { mutableStateOf(false) }
-    var songQuery by rememberSaveable { mutableStateOf("") }
+    var songQuery by remember { mutableStateOf("") }
     var creatingPlaylist by remember { mutableStateOf(false) }
 
     LaunchedEffect(target) {
@@ -316,7 +309,7 @@ private fun MusicPicker(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onBack) {
-            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.action_back))
+            Icon(FolioIcons.ArrowBack, contentDescription = stringResource(R.string.action_back))
         }
         Column(Modifier.weight(1f)) {
             Text(
@@ -367,7 +360,7 @@ private fun MusicPicker(
                             overflow = TextOverflow.Ellipsis,
                         )
                     },
-                    leadingIcon = { Icon(Icons.Rounded.GraphicEq, contentDescription = null) },
+                    leadingIcon = { Icon(FolioIcons.GraphicEq, contentDescription = null) },
                     modifier = Modifier.padding(horizontal = 20.dp),
                 )
             }
@@ -389,7 +382,7 @@ private fun MusicPicker(
                 onToggle = { playlistIds.toggle(entry.collection.id) },
                 title = entry.collection.name,
                 subtitle = pluralStringResource(R.plurals.music_track_count, entry.trackCount, entry.trackCount),
-                icon = { Icon(Icons.Rounded.LibraryMusic, contentDescription = null) },
+                icon = { Icon(FolioIcons.LibraryMusic, contentDescription = null) },
             )
         }
 
@@ -399,7 +392,7 @@ private fun MusicPicker(
                 value = songQuery,
                 onValueChange = { songQuery = it },
                 singleLine = true,
-                leadingIcon = { Icon(Icons.Rounded.Search, contentDescription = null) },
+                leadingIcon = { Icon(FolioIcons.Search, contentDescription = null) },
                 placeholder = { Text(stringResource(R.string.music_search)) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -412,7 +405,7 @@ private fun MusicPicker(
                 onToggle = { trackIds.toggle(track.id) },
                 title = track.displayTitle,
                 subtitle = track.displayArtist,
-                icon = { Icon(Icons.Rounded.MusicNote, contentDescription = null) },
+                icon = { Icon(FolioIcons.MusicNote, contentDescription = null) },
                 enabled = !track.missing,
             )
         }
@@ -548,7 +541,7 @@ private fun SheetSectionHeader(title: String, action: String? = null, onAction: 
         )
         if (action != null) {
             TextButton(onClick = onAction) {
-                Icon(Icons.Rounded.Add, contentDescription = null)
+                Icon(FolioIcons.Add, contentDescription = null)
                 Spacer(Modifier.width(4.dp))
                 Text(action)
             }
@@ -596,7 +589,7 @@ private fun SwitchLine(label: String, checked: Boolean, onChange: (Boolean) -> U
 @Composable
 private fun MusicMark() {
     Icon(
-        Icons.Rounded.MusicNote,
+        FolioIcons.MusicNote,
         contentDescription = null,
         tint = MaterialTheme.colorScheme.primary,
     )
