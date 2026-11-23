@@ -68,7 +68,9 @@ import app.folio.data.settings.UiDensity
 import app.folio.ui.components.ConfirmDialog
 import app.folio.ui.components.FolioChip
 import app.folio.ui.components.NavigationRow
-import app.folio.ui.components.SectionHeader
+import app.folio.ui.components.SettingsGroup
+import app.folio.ui.components.SettingsLink
+import app.folio.ui.components.SettingsSectionHeader
 import app.folio.ui.components.SettingsScaffold
 import app.folio.ui.components.SliderRow
 import app.folio.ui.components.SwitchRow
@@ -110,55 +112,59 @@ fun SettingsScreen(
                     modifier = Modifier.padding(14.dp),
                 )
             }
-            Spacer(Modifier.height(12.dp))
 
-            SectionHeader(stringResource(R.string.settings_appearance))
-            NavigationRow(
-                stringResource(R.string.settings_theme),
-                FolioThemes.byId(settings.appearance.themeId).name(),
-            ) { onNavigate(app.folio.ui.nav.Routes.THEMES) }
-            NavigationRow(
-                stringResource(R.string.settings_night_light),
-                nightLightSummary(settings.nightLight),
-            ) { onNavigate(app.folio.ui.nav.Routes.NIGHT_LIGHT) }
-            NavigationRow(stringResource(R.string.settings_accessibility), null) {
-                onNavigate(app.folio.ui.nav.Routes.ACCESSIBILITY)
-            }
-
-            SectionHeader(stringResource(R.string.settings_section_reading))
-            NavigationRow(stringResource(R.string.settings_reader), null) {
-                onNavigate(app.folio.ui.nav.Routes.READER_SETTINGS)
-            }
-            NavigationRow(stringResource(R.string.settings_library), null) {
-                onNavigate(app.folio.ui.nav.Routes.LIBRARY_SETTINGS)
-            }
-
-            SectionHeader(stringResource(R.string.settings_section_focus))
-            NavigationRow(stringResource(R.string.settings_pomodoro), null) {
-                onNavigate(app.folio.ui.nav.Routes.POMODORO_SETTINGS)
-            }
-            NavigationRow(stringResource(R.string.settings_notifications), null) {
-                onNavigate(app.folio.ui.nav.Routes.NOTIFICATIONS)
-            }
-
-            SectionHeader(stringResource(R.string.settings_section_content_data))
-            NavigationRow(stringResource(R.string.settings_manga), null) {
-                onNavigate(app.folio.ui.nav.Routes.MANGA_SETTINGS)
-            }
-            NavigationRow(stringResource(R.string.settings_storage), null) {
-                onNavigate(app.folio.ui.nav.Routes.STORAGE)
-            }
-            NavigationRow(stringResource(R.string.settings_data), null) {
-                onNavigate(app.folio.ui.nav.Routes.BACKUP)
-            }
-
-            SectionHeader(stringResource(R.string.settings_section_other))
-            NavigationRow(stringResource(R.string.settings_privacy), null) {
-                onNavigate(app.folio.ui.nav.Routes.PRIVACY)
-            }
-            NavigationRow(stringResource(R.string.settings_about), null) {
-                onNavigate(app.folio.ui.nav.Routes.ABOUT)
-            }
+            val go = { route: String -> { onNavigate(route) } }
+            SettingsGroup(
+                stringResource(R.string.settings_appearance),
+                listOf(
+                    SettingsLink(
+                        FolioIcons.Palette,
+                        stringResource(R.string.settings_theme),
+                        FolioThemes.byId(settings.appearance.themeId).name(),
+                        go(app.folio.ui.nav.Routes.THEMES),
+                    ),
+                    SettingsLink(
+                        FolioIcons.Moon,
+                        stringResource(R.string.settings_night_light),
+                        nightLightSummary(settings.nightLight),
+                        go(app.folio.ui.nav.Routes.NIGHT_LIGHT),
+                    ),
+                    SettingsLink(
+                        FolioIcons.Eye,
+                        stringResource(R.string.settings_accessibility),
+                        onClick = go(app.folio.ui.nav.Routes.ACCESSIBILITY),
+                    ),
+                ),
+            )
+            SettingsGroup(
+                stringResource(R.string.settings_section_reading),
+                listOf(
+                    SettingsLink(FolioIcons.MenuBook, stringResource(R.string.settings_reader), onClick = go(app.folio.ui.nav.Routes.READER_SETTINGS)),
+                    SettingsLink(FolioIcons.Bookshelf, stringResource(R.string.settings_library), onClick = go(app.folio.ui.nav.Routes.LIBRARY_SETTINGS)),
+                ),
+            )
+            SettingsGroup(
+                stringResource(R.string.settings_section_focus),
+                listOf(
+                    SettingsLink(FolioIcons.Timer, stringResource(R.string.settings_pomodoro), onClick = go(app.folio.ui.nav.Routes.POMODORO_SETTINGS)),
+                    SettingsLink(FolioIcons.Bell, stringResource(R.string.settings_notifications), onClick = go(app.folio.ui.nav.Routes.NOTIFICATIONS)),
+                ),
+            )
+            SettingsGroup(
+                stringResource(R.string.settings_section_content_data),
+                listOf(
+                    SettingsLink(FolioIcons.Extension, stringResource(R.string.settings_manga), onClick = go(app.folio.ui.nav.Routes.MANGA_SETTINGS)),
+                    SettingsLink(FolioIcons.Folder, stringResource(R.string.settings_storage), onClick = go(app.folio.ui.nav.Routes.STORAGE)),
+                    SettingsLink(FolioIcons.Upload, stringResource(R.string.settings_data), onClick = go(app.folio.ui.nav.Routes.BACKUP)),
+                ),
+            )
+            SettingsGroup(
+                stringResource(R.string.settings_section_other),
+                listOf(
+                    SettingsLink(FolioIcons.Shield, stringResource(R.string.settings_privacy), onClick = go(app.folio.ui.nav.Routes.PRIVACY)),
+                    SettingsLink(FolioIcons.Info, stringResource(R.string.settings_about), onClick = go(app.folio.ui.nav.Routes.ABOUT)),
+                ),
+            )
         }
     }
 }
@@ -174,7 +180,7 @@ fun ThemePickerScreen(
 
     SettingsScaffold(stringResource(R.string.settings_theme), onBack) {
         ThemeGroup.entries.forEach { group ->
-            SectionHeader(group.label())
+            SettingsSectionHeader(group.label())
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -195,7 +201,7 @@ fun ThemePickerScreen(
             Spacer(Modifier.height(16.dp))
         }
 
-        SectionHeader(stringResource(R.string.settings_accent))
+        SettingsSectionHeader(stringResource(R.string.settings_accent))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             FolioThemes.accentChoices.forEach { color ->
                 val selected = settings.appearance.accentArgb == AccentColor.encode(color)
@@ -229,7 +235,7 @@ fun ThemePickerScreen(
         }
 
         if (settings.appearance.autoNightTheme) {
-            SectionHeader(stringResource(R.string.settings_night_theme))
+            SettingsSectionHeader(stringResource(R.string.settings_night_theme))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FolioThemes.all.filter { it.isDark }.forEach { theme ->
                     FilterChip(
@@ -243,7 +249,7 @@ fun ThemePickerScreen(
             }
         }
 
-        SectionHeader(stringResource(R.string.settings_density))
+        SettingsSectionHeader(stringResource(R.string.settings_density))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             UiDensity.entries.forEach { density ->
                 FilterChip(
@@ -326,7 +332,7 @@ fun ReaderDefaultsScreen(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
     SettingsScaffold(stringResource(R.string.settings_reader), onBack) {
-        SectionHeader(stringResource(R.string.setting_view_mode))
+        SettingsSectionHeader(stringResource(R.string.setting_view_mode))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             PdfViewMode.entries.forEach { mode ->
                 FilterChip(
@@ -337,7 +343,7 @@ fun ReaderDefaultsScreen(
             }
         }
 
-        SectionHeader(stringResource(R.string.setting_direction))
+        SettingsSectionHeader(stringResource(R.string.setting_direction))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ComicDirection.entries.forEach { direction ->
                 FilterChip(
@@ -358,7 +364,7 @@ fun ReaderDefaultsScreen(
             }
         }
 
-        SectionHeader(stringResource(R.string.setting_tap_zones))
+        SettingsSectionHeader(stringResource(R.string.setting_tap_zones))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TapZoneStyle.entries.forEach { style ->
                 FilterChip(
@@ -380,7 +386,7 @@ fun ReaderDefaultsScreen(
             }
         }
 
-        SectionHeader(stringResource(R.string.setting_orientation))
+        SettingsSectionHeader(stringResource(R.string.setting_orientation))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OrientationLock.entries.forEach { lock ->
                 FilterChip(
@@ -401,7 +407,7 @@ fun ReaderDefaultsScreen(
             }
         }
 
-        SectionHeader(stringResource(R.string.settings_section_behavior))
+        SettingsSectionHeader(stringResource(R.string.settings_section_behavior))
         SwitchRow(stringResource(R.string.setting_keep_screen_on), settings.behavior.keepScreenOn) { checked ->
             viewModel.update { it.copy(behavior = it.behavior.copy(keepScreenOn = checked)) }
         }
@@ -424,7 +430,7 @@ fun ReaderDefaultsScreen(
             viewModel.update { it.copy(behavior = it.behavior.copy(pageTurnHaptic = checked)) }
         }
 
-        SectionHeader(stringResource(R.string.settings_section_zoom))
+        SettingsSectionHeader(stringResource(R.string.settings_section_zoom))
         SwitchRow(stringResource(R.string.setting_zoom_lock_button), settings.behavior.zoomLockButton) { checked ->
             viewModel.update { it.copy(behavior = it.behavior.copy(zoomLockButton = checked)) }
         }
@@ -456,7 +462,7 @@ fun LibrarySettingsScreen(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
     SettingsScaffold(stringResource(R.string.settings_library), onBack) {
-        SectionHeader(stringResource(R.string.home_style))
+        SettingsSectionHeader(stringResource(R.string.home_style))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             app.folio.data.settings.HomeStyle.entries.forEach { style ->
                 FilterChip(
@@ -477,7 +483,7 @@ fun LibrarySettingsScreen(
         }
 
         if (settings.home.style == app.folio.data.settings.HomeStyle.CLASSIC) {
-            SectionHeader(stringResource(R.string.settings_home_sections))
+            SettingsSectionHeader(stringResource(R.string.settings_home_sections))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 HomeSection.entries.forEach { section ->
                     val enabled = section in settings.home.sections
@@ -499,7 +505,7 @@ fun LibrarySettingsScreen(
             }
         }
 
-        SectionHeader(stringResource(R.string.library_layout))
+        SettingsSectionHeader(stringResource(R.string.library_layout))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             LibraryLayout.entries.forEach { layout ->
                 FilterChip(
@@ -510,7 +516,7 @@ fun LibrarySettingsScreen(
             }
         }
 
-        SectionHeader(stringResource(R.string.library_sort))
+        SettingsSectionHeader(stringResource(R.string.library_sort))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             BookSort.entries.forEach { sort ->
                 FilterChip(
@@ -650,7 +656,7 @@ fun StorageScreen(
     val context = LocalContext.current
 
     SettingsScaffold(stringResource(R.string.settings_storage), onBack) {
-        SectionHeader(stringResource(R.string.settings_section_storage_usage))
+        SettingsSectionHeader(stringResource(R.string.settings_section_storage_usage))
         StorageRow(stringResource(R.string.library_title), Format.fileSize(librarySize))
         StorageRow(stringResource(R.string.action_change_cover), Format.fileSize(storage.covers))
         StorageRow(stringResource(R.string.reader_thumbnails), Format.fileSize(storage.renderedPages))
@@ -658,7 +664,7 @@ fun StorageScreen(
         StorageRow(stringResource(R.string.import_skipped), Format.fileSize(storage.temporary))
         StorageRow(stringResource(R.string.settings_import_copy), Format.fileSize(storage.importedFiles))
 
-        SectionHeader(stringResource(R.string.settings_import_mode))
+        SettingsSectionHeader(stringResource(R.string.settings_import_mode))
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             ImportMode.entries.forEach { mode ->
                 FilterChip(
@@ -679,7 +685,7 @@ fun StorageScreen(
             }
         }
 
-        SectionHeader(stringResource(R.string.settings_section_indexing))
+        SettingsSectionHeader(stringResource(R.string.settings_section_indexing))
         SwitchRow(stringResource(R.string.settings_full_text), settings.storage.fullTextIndexing) { checked ->
             viewModel.update { it.copy(storage = it.storage.copy(fullTextIndexing = checked)) }
             if (checked) viewModel.reindex(context) else viewModel.clearTextIndex()
@@ -744,12 +750,12 @@ fun NightLightScreen(
         }
 
         if (night.mode == NightLightMode.SCHEDULED) {
-            SectionHeader(stringResource(R.string.night_light_schedule))
+            SettingsSectionHeader(stringResource(R.string.night_light_schedule))
             NavigationRow(stringResource(R.string.night_light_start), NightLight.clock(night.startMinutes)) { editing = 0 }
             NavigationRow(stringResource(R.string.night_light_end), NightLight.clock(night.endMinutes)) { editing = 1 }
         }
 
-        SectionHeader(stringResource(R.string.night_light_strength))
+        SettingsSectionHeader(stringResource(R.string.night_light_strength))
         SliderRow(
             label = stringResource(R.string.night_light_warmth),
             value = night.warmth,
@@ -768,7 +774,7 @@ fun NightLightScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
 
-        SectionHeader(stringResource(R.string.bedtime_section))
+        SettingsSectionHeader(stringResource(R.string.bedtime_section))
         SwitchRow(stringResource(R.string.bedtime_reminder), night.bedtimeReminder) { on ->
             update { it.copy(bedtimeReminder = on) }
         }
@@ -885,7 +891,7 @@ fun PrivacyScreen(
             viewModel.update { it.copy(privacy = it.privacy.copy(hideInRecents = checked)) }
         }
 
-        SectionHeader(stringResource(R.string.settings_section_browsing))
+        SettingsSectionHeader(stringResource(R.string.settings_section_browsing))
         Text(
             text = stringResource(R.string.settings_browsing_note),
             style = MaterialTheme.typography.bodySmall,

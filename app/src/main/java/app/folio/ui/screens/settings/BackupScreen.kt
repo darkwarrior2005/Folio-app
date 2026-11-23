@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.folio.R
 import app.folio.ui.components.ConfirmDialog
-import app.folio.ui.components.SectionHeader
+import app.folio.ui.components.SettingsSectionHeader
 import app.folio.ui.components.SettingsScaffold
 import app.folio.ui.components.SwitchRow
 import app.folio.ui.folioViewModel
@@ -57,7 +57,7 @@ fun BackupScreen(
     ) { uri -> uri?.let { viewModel.exportAnnotations(it.toString()) } }
 
     SettingsScaffold(stringResource(R.string.settings_data), onBack) {
-        SectionHeader(stringResource(R.string.backup_title))
+        SettingsSectionHeader(stringResource(R.string.backup_title))
         Text(
             text = stringResource(R.string.settings_offline_note),
             style = MaterialTheme.typography.bodySmall,
